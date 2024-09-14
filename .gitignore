@@ -15,10 +15,6 @@ main.js
 main.test.js
 *.js.map
 
-# test
-test/
-tests_jest/
-
 # Obsidian
 data.json
 .hotreload

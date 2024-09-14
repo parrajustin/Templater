@@ -1,11 +1,16 @@
-import { ButtonComponent, PluginSettingTab, Setting } from "obsidian";
+import {
+    App,
+    ButtonComponent,
+    PluginSettingTab,
+    Setting,
+    TAbstractFile,
+    TFile,
+    TFolder
+} from "obsidian";
 import { errorWrapperSync, TemplaterError } from "utils/Error";
-import { FolderSuggest } from "./suggesters/FolderSuggester";
-import { FileSuggest, FileSuggestMode } from "./suggesters/FileSuggester";
 import TemplaterPlugin from "main";
 import { arraymove, get_tfiles_from_folder } from "utils/Utils";
 import { log_error } from "utils/Log";
-import { HEART, PAYPAL } from "utils/Constants";
 
 export interface FolderTemplate {
     folder: string;
@@ -47,8 +52,10 @@ export interface Settings {
 }
 
 export class TemplaterSettingTab extends PluginSettingTab {
-    constructor(private plugin: TemplaterPlugin) {
+    plugin: TemplaterPlugin;
+    constructor(app: App, plugin: TemplaterPlugin) {
         super(app, plugin);
+        this.plugin = plugin;
     }
 
     display(): void {
@@ -66,23 +73,24 @@ export class TemplaterSettingTab extends PluginSettingTab {
         this.add_startup_templates_setting();
         this.add_user_script_functions_setting();
         this.add_user_system_command_functions_setting();
-        this.add_donating_setting();
     }
 
     add_template_folder_setting(): void {
         new Setting(this.containerEl)
             .setName("Template folder location")
             .setDesc("Files in this folder will be available as templates.")
-            .addSearch((cb) => {
-                new FolderSuggest(cb.inputEl);
-                cb.setPlaceholder("Example: folder1/folder2")
-                    .setValue(this.plugin.settings.templates_folder)
-                    .onChange((new_folder) => {
-                        this.plugin.settings.templates_folder = new_folder;
-                        this.plugin.save_settings();
-                    });
-                // @ts-ignore
-                cb.containerEl.addClass("templater_search");
+            .addDropdown((cb) => {
+                const abstractFiles = this.app.vault.getAllLoadedFiles();
+                abstractFiles.forEach((folder: TAbstractFile) => {
+                    if (folder instanceof TFolder) {
+                        cb.addOption(folder.path, folder.path);
+                    }
+                });
+                cb.setValue(this.plugin.settings.templates_folder).onChange((new_folder) => {
+                    this.plugin.settings.templates_folder = new_folder;
+                    this.plugin.save_settings();
+                });
+                cb.selectEl.addClass("templater_search");
             });
     }
 
@@ -94,27 +102,23 @@ export class TemplaterSettingTab extends PluginSettingTab {
             "Check the ",
             desc.createEl("a", {
                 href: "https://silentvoid13.github.io/Templater/",
-                text: "documentation",
+                text: "documentation"
             }),
             " to get a list of all the available internal variables / functions."
         );
 
-        new Setting(this.containerEl)
-            .setName("Internal variables and functions")
-            .setDesc(desc);
+        new Setting(this.containerEl).setName("Internal variables and functions").setDesc(desc);
     }
 
     add_syntax_highlighting_settings(): void {
         const desktopDesc = document.createDocumentFragment();
-        desktopDesc.append(
-            "Adds syntax highlighting for Templater commands in edit mode."
-        );
+        desktopDesc.append("Adds syntax highlighting for Templater commands in edit mode.");
 
         const mobileDesc = document.createDocumentFragment();
         mobileDesc.append(
             "Adds syntax highlighting for Templater commands in edit mode on " +
-            "mobile. Use with caution: this may break live preview on mobile " +
-            "platforms."
+                "mobile. Use with caution: this may break live preview on mobile " +
+                "platforms."
         );
 
         new Setting(this.containerEl)
@@ -124,8 +128,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 toggle
                     .setValue(this.plugin.settings.syntax_highlighting)
                     .onChange((syntax_highlighting) => {
-                        this.plugin.settings.syntax_highlighting =
-                            syntax_highlighting;
+                        this.plugin.settings.syntax_highlighting = syntax_highlighting;
                         this.plugin.save_settings();
                         this.plugin.event_handler.update_syntax_highlighting();
                     });
@@ -165,8 +168,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 toggle
                     .setValue(this.plugin.settings.auto_jump_to_cursor)
                     .onChange((auto_jump_to_cursor) => {
-                        this.plugin.settings.auto_jump_to_cursor =
-                            auto_jump_to_cursor;
+                        this.plugin.settings.auto_jump_to_cursor = auto_jump_to_cursor;
                         this.plugin.save_settings();
                     });
             });
@@ -180,7 +182,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
             "This makes Templater compatible with other plugins like the Daily note core plugin, Calendar plugin, Review plugin, Note refactor plugin, ...",
             desc.createEl("br"),
             desc.createEl("b", {
-                text: "Warning: ",
+                text: "Warning: "
             }),
             "This can be dangerous if you create new files with unknown / unsafe content on creation. Make sure that every new file's content is safe on creation."
         );
@@ -192,8 +194,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 toggle
                     .setValue(this.plugin.settings.trigger_on_file_creation)
                     .onChange((trigger_on_file_creation) => {
-                        this.plugin.settings.trigger_on_file_creation =
-                            trigger_on_file_creation;
+                        this.plugin.settings.trigger_on_file_creation = trigger_on_file_creation;
                         this.plugin.save_settings();
                         this.plugin.event_handler.update_trigger_file_on_creation();
                         // Force refresh
@@ -206,111 +207,93 @@ export class TemplaterSettingTab extends PluginSettingTab {
         new Setting(this.containerEl).setName("Template hotkeys").setHeading();
 
         const desc = document.createDocumentFragment();
-        desc.append(
-            "Template hotkeys allows you to bind a template to a hotkey."
-        );
+        desc.append("Template hotkeys allows you to bind a template to a hotkey.");
 
         new Setting(this.containerEl).setDesc(desc);
 
-        this.plugin.settings.enabled_templates_hotkeys.forEach(
-            (template, index) => {
-                const s = new Setting(this.containerEl)
-                    .addSearch((cb) => {
-                        new FileSuggest(
-                            cb.inputEl,
-                            this.plugin,
-                            FileSuggestMode.TemplateFiles
-                        );
-                        cb.setPlaceholder("Example: folder1/template_file")
-                            .setValue(template)
-                            .onChange((new_template) => {
-                                if (
-                                    new_template &&
-                                    this.plugin.settings.enabled_templates_hotkeys.contains(
-                                        new_template
-                                    )
-                                ) {
-                                    log_error(
-                                        new TemplaterError(
-                                            "This template is already bound to a hotkey"
-                                        )
-                                    );
-                                    return;
-                                }
-                                this.plugin.command_handler.add_template_hotkey(
-                                    this.plugin.settings
-                                        .enabled_templates_hotkeys[index],
-                                    new_template
-                                );
-                                this.plugin.settings.enabled_templates_hotkeys[
-                                    index
-                                ] = new_template;
-                                this.plugin.save_settings();
-                            });
-                        // @ts-ignore
-                        cb.containerEl.addClass("templater_search");
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("any-key")
-                            .setTooltip("Configure Hotkey")
-                            .onClick(() => {
-                                // TODO: Replace with future "official" way to do this
-                                // @ts-ignore
-                                app.setting.openTabById("hotkeys");
-                                // @ts-ignore
-                                const tab = app.setting.activeTab;
-                                tab.searchInputEl.value = "Templater: Insert";
-                                tab.updateHotkeyVisibility();
-                            });
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("up-chevron-glyph")
-                            .setTooltip("Move up")
-                            .onClick(() => {
-                                arraymove(
-                                    this.plugin.settings
-                                        .enabled_templates_hotkeys,
-                                    index,
-                                    index - 1
-                                );
-                                this.plugin.save_settings();
-                                this.display();
-                            });
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("down-chevron-glyph")
-                            .setTooltip("Move down")
-                            .onClick(() => {
-                                arraymove(
-                                    this.plugin.settings
-                                        .enabled_templates_hotkeys,
-                                    index,
-                                    index + 1
-                                );
-                                this.plugin.save_settings();
-                                this.display();
-                            });
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("cross")
-                            .setTooltip("Delete")
-                            .onClick(() => {
-                                this.plugin.command_handler.remove_template_hotkey(
-                                    this.plugin.settings
-                                        .enabled_templates_hotkeys[index]
-                                );
-                                this.plugin.settings.enabled_templates_hotkeys.splice(
-                                    index,
-                                    1
-                                );
-                                this.plugin.save_settings();
-                                // Force refresh
-                                this.display();
-                            });
+        this.plugin.settings.enabled_templates_hotkeys.forEach((template, index) => {
+            const s = new Setting(this.containerEl)
+                .addDropdown((cb) => {
+                    const abstractFiles = this.app.vault.getAllLoadedFiles();
+                    abstractFiles.forEach((item: TAbstractFile) => {
+                        if (item instanceof TFile) {
+                            cb.addOption(item.path, item.path);
+                        }
                     });
-                s.infoEl.remove();
-            }
-        );
+                    cb.setValue(template).onChange((new_template) => {
+                        if (
+                            new_template &&
+                            this.plugin.settings.enabled_templates_hotkeys.contains(new_template)
+                        ) {
+                            log_error(
+                                new TemplaterError("This template is already bound to a hotkey")
+                            );
+                            return;
+                        }
+                        this.plugin.command_handler.add_template_hotkey(
+                            this.plugin.settings.enabled_templates_hotkeys[index] as string,
+                            new_template
+                        );
+                        this.plugin.settings.enabled_templates_hotkeys[index] = new_template;
+                        this.plugin.save_settings();
+                    });
+                    // @ts-ignore
+                    cb.selectEl.addClass("templater_search");
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("any-key")
+                        .setTooltip("Configure Hotkey")
+                        .onClick(() => {
+                            // TODO: Replace with future "official" way to do this
+                            // @ts-ignore
+                            app.setting.openTabById("hotkeys");
+                            // @ts-ignore
+                            const tab = app.setting.activeTab;
+                            tab.searchInputEl.value = "Templater: Insert";
+                            tab.updateHotkeyVisibility();
+                        });
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("up-chevron-glyph")
+                        .setTooltip("Move up")
+                        .onClick(() => {
+                            arraymove(
+                                this.plugin.settings.enabled_templates_hotkeys,
+                                index,
+                                index - 1
+                            );
+                            this.plugin.save_settings();
+                            this.display();
+                        });
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("down-chevron-glyph")
+                        .setTooltip("Move down")
+                        .onClick(() => {
+                            arraymove(
+                                this.plugin.settings.enabled_templates_hotkeys,
+                                index,
+                                index + 1
+                            );
+                            this.plugin.save_settings();
+                            this.display();
+                        });
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("cross")
+                        .setTooltip("Delete")
+                        .onClick(() => {
+                            this.plugin.command_handler.remove_template_hotkey(
+                                this.plugin.settings.enabled_templates_hotkeys[index] as string
+                            );
+                            this.plugin.settings.enabled_templates_hotkeys.splice(index, 1);
+                            this.plugin.save_settings();
+                            // Force refresh
+                            this.display();
+                        });
+                });
+            s.infoEl.remove();
+        });
 
         new Setting(this.containerEl).addButton((cb) => {
             cb.setButtonText("Add new hotkey for template")
@@ -355,8 +338,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 toggle
                     .setValue(this.plugin.settings.enable_folder_templates)
                     .onChange((use_new_file_templates) => {
-                        this.plugin.settings.enable_folder_templates =
-                            use_new_file_templates;
+                        this.plugin.settings.enable_folder_templates = use_new_file_templates;
                         this.plugin.save_settings();
                         // Force refresh
                         this.display();
@@ -378,101 +360,88 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .onClick(() => {
                         this.plugin.settings.folder_templates.push({
                             folder: "",
-                            template: "",
+                            template: ""
                         });
                         this.plugin.save_settings();
                         this.display();
                     });
             });
 
-        this.plugin.settings.folder_templates.forEach(
-            (folder_template, index) => {
-                const s = new Setting(this.containerEl)
-                    .addSearch((cb) => {
-                        new FolderSuggest(cb.inputEl);
-                        cb.setPlaceholder("Folder")
-                            .setValue(folder_template.folder)
-                            .onChange((new_folder) => {
-                                if (
-                                    new_folder &&
-                                    this.plugin.settings.folder_templates.some(
-                                        (e) => e.folder == new_folder
-                                    )
-                                ) {
-                                    log_error(
-                                        new TemplaterError(
-                                            "This folder already has a template associated with it"
-                                        )
-                                    );
-                                    return;
-                                }
-
-                                this.plugin.settings.folder_templates[
-                                    index
-                                ].folder = new_folder;
-                                this.plugin.save_settings();
-                            });
-                        // @ts-ignore
-                        cb.containerEl.addClass("templater_search");
-                    })
-                    .addSearch((cb) => {
-                        new FileSuggest(
-                            cb.inputEl,
-                            this.plugin,
-                            FileSuggestMode.TemplateFiles
-                        );
-                        cb.setPlaceholder("Template")
-                            .setValue(folder_template.template)
-                            .onChange((new_template) => {
-                                this.plugin.settings.folder_templates[
-                                    index
-                                ].template = new_template;
-                                this.plugin.save_settings();
-                            });
-                        // @ts-ignore
-                        cb.containerEl.addClass("templater_search");
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("up-chevron-glyph")
-                            .setTooltip("Move up")
-                            .onClick(() => {
-                                arraymove(
-                                    this.plugin.settings.folder_templates,
-                                    index,
-                                    index - 1
-                                );
-                                this.plugin.save_settings();
-                                this.display();
-                            });
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("down-chevron-glyph")
-                            .setTooltip("Move down")
-                            .onClick(() => {
-                                arraymove(
-                                    this.plugin.settings.folder_templates,
-                                    index,
-                                    index + 1
-                                );
-                                this.plugin.save_settings();
-                                this.display();
-                            });
-                    })
-                    .addExtraButton((cb) => {
-                        cb.setIcon("cross")
-                            .setTooltip("Delete")
-                            .onClick(() => {
-                                this.plugin.settings.folder_templates.splice(
-                                    index,
-                                    1
-                                );
-                                this.plugin.save_settings();
-                                this.display();
-                            });
+        this.plugin.settings.folder_templates.forEach((folder_template, index) => {
+            const s = new Setting(this.containerEl)
+                .addDropdown((cb) => {
+                    const abstractFiles = this.app.vault.getAllLoadedFiles();
+                    abstractFiles.forEach((item: TAbstractFile) => {
+                        if (item instanceof TFile) {
+                            cb.addOption(item.path, item.path);
+                        }
                     });
-                s.infoEl.remove();
-            }
-        );
+                    cb.setValue(folder_template.folder).onChange((new_folder) => {
+                        if (
+                            new_folder &&
+                            this.plugin.settings.folder_templates.some(
+                                (e) => e.folder == new_folder
+                            )
+                        ) {
+                            log_error(
+                                new TemplaterError(
+                                    "This folder already has a template associated with it"
+                                )
+                            );
+                            return;
+                        }
+
+                        (this.plugin.settings.folder_templates[index] as FolderTemplate).folder =
+                            new_folder;
+                        this.plugin.save_settings();
+                    });
+                    // @ts-ignore
+                    cb.selectEl.addClass("templater_search");
+                })
+                .addDropdown((cb) => {
+                    const abstractFiles = this.app.vault.getAllLoadedFiles();
+                    abstractFiles.forEach((item: TAbstractFile) => {
+                        if (item instanceof TFolder) {
+                            cb.addOption(item.path, item.path);
+                        }
+                    });
+                    cb.setValue(folder_template.template).onChange((new_template) => {
+                        (this.plugin.settings.folder_templates[index] as FolderTemplate).template =
+                            new_template;
+                        this.plugin.save_settings();
+                    });
+                    // @ts-ignore
+                    cb.selectEl.addClass("templater_search");
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("up-chevron-glyph")
+                        .setTooltip("Move up")
+                        .onClick(() => {
+                            arraymove(this.plugin.settings.folder_templates, index, index - 1);
+                            this.plugin.save_settings();
+                            this.display();
+                        });
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("down-chevron-glyph")
+                        .setTooltip("Move down")
+                        .onClick(() => {
+                            arraymove(this.plugin.settings.folder_templates, index, index + 1);
+                            this.plugin.save_settings();
+                            this.display();
+                        });
+                })
+                .addExtraButton((cb) => {
+                    cb.setIcon("cross")
+                        .setTooltip("Delete")
+                        .onClick(() => {
+                            this.plugin.settings.folder_templates.splice(index, 1);
+                            this.plugin.save_settings();
+                            this.display();
+                        });
+                });
+            s.infoEl.remove();
+        });
     }
 
     add_startup_templates_setting(): void {
@@ -491,43 +460,32 @@ export class TemplaterSettingTab extends PluginSettingTab {
 
         this.plugin.settings.startup_templates.forEach((template, index) => {
             const s = new Setting(this.containerEl)
-                .addSearch((cb) => {
-                    new FileSuggest(
-                        cb.inputEl,
-                        this.plugin,
-                        FileSuggestMode.TemplateFiles
-                    );
-                    cb.setPlaceholder("Example: folder1/template_file")
-                        .setValue(template)
-                        .onChange((new_template) => {
-                            if (
-                                new_template &&
-                                this.plugin.settings.startup_templates.contains(
-                                    new_template
-                                )
-                            ) {
-                                log_error(
-                                    new TemplaterError(
-                                        "This startup template already exist"
-                                    )
-                                );
-                                return;
-                            }
-                            this.plugin.settings.startup_templates[index] =
-                                new_template;
-                            this.plugin.save_settings();
-                        });
+                .addDropdown((cb) => {
+                    const abstractFiles = this.app.vault.getAllLoadedFiles();
+                    abstractFiles.forEach((item: TAbstractFile) => {
+                        if (item instanceof TFile) {
+                            cb.addOption(item.path, item.path);
+                        }
+                    });
+                    cb.setValue(template).onChange((new_template) => {
+                        if (
+                            new_template &&
+                            this.plugin.settings.startup_templates.contains(new_template)
+                        ) {
+                            log_error(new TemplaterError("This startup template already exist"));
+                            return;
+                        }
+                        this.plugin.settings.startup_templates[index] = new_template;
+                        this.plugin.save_settings();
+                    });
                     // @ts-ignore
-                    cb.containerEl.addClass("templater_search");
+                    cb.selectEl.addClass("templater_search");
                 })
                 .addExtraButton((cb) => {
                     cb.setIcon("cross")
                         .setTooltip("Delete")
                         .onClick(() => {
-                            this.plugin.settings.startup_templates.splice(
-                                index,
-                                1
-                            );
+                            this.plugin.settings.startup_templates.splice(index, 1);
                             this.plugin.save_settings();
                             // Force refresh
                             this.display();
@@ -560,7 +518,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
             "Check the ",
             desc.createEl("a", {
                 href: "https://silentvoid13.github.io/Templater/",
-                text: "documentation",
+                text: "documentation"
             }),
             " for more information."
         );
@@ -568,16 +526,19 @@ export class TemplaterSettingTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Script files folder location")
             .setDesc(desc)
-            .addSearch((cb) => {
-                new FolderSuggest(cb.inputEl);
-                cb.setPlaceholder("Example: folder1/folder2")
-                    .setValue(this.plugin.settings.user_scripts_folder)
-                    .onChange((new_folder) => {
-                        this.plugin.settings.user_scripts_folder = new_folder;
-                        this.plugin.save_settings();
-                    });
+            .addDropdown((cb) => {
+                const abstractFiles = this.app.vault.getAllLoadedFiles();
+                abstractFiles.forEach((folder: TAbstractFile) => {
+                    if (folder instanceof TFolder) {
+                        cb.addOption(folder.path, folder.path);
+                    }
+                });
+                cb.setValue(this.plugin.settings.user_scripts_folder).onChange((new_folder) => {
+                    this.plugin.settings.user_scripts_folder = new_folder;
+                    this.plugin.save_settings();
+                });
                 // @ts-ignore
-                cb.containerEl.addClass("templater_search");
+                cb.selectEl.addClass("templater_search");
             });
 
         desc = document.createDocumentFragment();
@@ -586,10 +547,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
             name = "No user scripts folder set";
         } else {
             const files = errorWrapperSync(
-                () =>
-                    get_tfiles_from_folder(
-                        this.plugin.settings.user_scripts_folder
-                    ),
+                () => get_tfiles_from_folder(this.plugin.settings.user_scripts_folder),
                 `User scripts folder doesn't exist`
             );
             if (!files || files.length === 0) {
@@ -601,7 +559,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         count++;
                         desc.append(
                             desc.createEl("li", {
-                                text: `tp.user.${file.basename}`,
+                                text: `tp.user.${file.basename}`
                             })
                         );
                     }
@@ -630,7 +588,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
             "Allows you to create user functions linked to system commands.",
             desc.createEl("br"),
             desc.createEl("b", {
-                text: "Warning: ",
+                text: "Warning: "
             }),
             "It can be dangerous to execute arbitrary system commands from untrusted sources. Only run system commands that you understand, from trusted sources."
         );
@@ -643,8 +601,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 toggle
                     .setValue(this.plugin.settings.enable_system_commands)
                     .onChange((enable_system_commands) => {
-                        this.plugin.settings.enable_system_commands =
-                            enable_system_commands;
+                        this.plugin.settings.enable_system_commands = enable_system_commands;
                         this.plugin.save_settings();
                         // Force refresh
                         this.display();
@@ -657,17 +614,11 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 .setDesc("Maximum timeout in seconds for a system command.")
                 .addText((text) => {
                     text.setPlaceholder("Timeout")
-                        .setValue(
-                            this.plugin.settings.command_timeout.toString()
-                        )
+                        .setValue(this.plugin.settings.command_timeout.toString())
                         .onChange((new_value) => {
                             const new_timeout = Number(new_value);
                             if (isNaN(new_timeout)) {
-                                log_error(
-                                    new TemplaterError(
-                                        "Timeout must be a number"
-                                    )
-                                );
+                                log_error(new TemplaterError("Timeout must be a number"));
                                 return;
                             }
                             this.plugin.settings.command_timeout = new_timeout;
@@ -701,7 +652,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 div.addClass("templater_div");
 
                 const title = this.containerEl.createEl("h4", {
-                    text: "User function n°" + i,
+                    text: "User function n°" + i
                 });
                 title.addClass("templater_title");
 
@@ -712,14 +663,9 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             .setTooltip("Delete")
                             .onClick(() => {
                                 const index =
-                                    this.plugin.settings.templates_pairs.indexOf(
-                                        template_pair
-                                    );
+                                    this.plugin.settings.templates_pairs.indexOf(template_pair);
                                 if (index > -1) {
-                                    this.plugin.settings.templates_pairs.splice(
-                                        index,
-                                        1
-                                    );
+                                    this.plugin.settings.templates_pairs.splice(index, 1);
                                     this.plugin.save_settings();
                                     // Force refresh
                                     this.display();
@@ -732,13 +678,14 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             .setValue(template_pair[0])
                             .onChange((new_value) => {
                                 const index =
-                                    this.plugin.settings.templates_pairs.indexOf(
-                                        template_pair
-                                    );
+                                    this.plugin.settings.templates_pairs.indexOf(template_pair);
                                 if (index > -1) {
-                                    this.plugin.settings.templates_pairs[
-                                        index
-                                    ][0] = new_value;
+                                    (
+                                        this.plugin.settings.templates_pairs[index] as [
+                                            string,
+                                            string
+                                        ]
+                                    )[0] = new_value;
                                     this.plugin.save_settings();
                                 }
                             });
@@ -752,13 +699,14 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             .setValue(template_pair[1])
                             .onChange((new_cmd) => {
                                 const index =
-                                    this.plugin.settings.templates_pairs.indexOf(
-                                        template_pair
-                                    );
+                                    this.plugin.settings.templates_pairs.indexOf(template_pair);
                                 if (index > -1) {
-                                    this.plugin.settings.templates_pairs[
-                                        index
-                                    ][1] = new_cmd;
+                                    (
+                                        this.plugin.settings.templates_pairs[index] as [
+                                            string,
+                                            string
+                                        ]
+                                    )[1] = new_cmd;
                                     this.plugin.save_settings();
                                 }
                             });
@@ -780,48 +728,20 @@ export class TemplaterSettingTab extends PluginSettingTab {
             const div = this.containerEl.createEl("div");
             div.addClass("templater_div2");
 
-            const setting = new Setting(this.containerEl).addButton(
-                (button) => {
-                    button
-                        .setButtonText("Add new user function")
-                        .setCta()
-                        .onClick(() => {
-                            this.plugin.settings.templates_pairs.push(["", ""]);
-                            this.plugin.save_settings();
-                            // Force refresh
-                            this.display();
-                        });
-                }
-            );
+            const setting = new Setting(this.containerEl).addButton((button) => {
+                button
+                    .setButtonText("Add new user function")
+                    .setCta()
+                    .onClick(() => {
+                        this.plugin.settings.templates_pairs.push(["", ""]);
+                        this.plugin.save_settings();
+                        // Force refresh
+                        this.display();
+                    });
+            });
             setting.infoEl.remove();
 
             div.appendChild(this.containerEl.lastChild as Node);
         }
-    }
-
-    add_donating_setting(): void {
-        const s = new Setting(this.containerEl)
-            .setName("Donate")
-            .setDesc(
-                "If you like this Plugin, consider donating to support continued development."
-            )
-
-
-        const a1 = document.createElement("a");
-        a1.setAttribute("href", "https://github.com/sponsors/silentvoid13");
-        a1.addClass("templater_donating");
-        const img1 = document.createElement("img");
-        img1.src = "https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86";
-        a1.appendChild(img1);
-
-        const a2 = document.createElement("a");
-        a2.setAttribute("href", "https://www.paypal.com/donate?hosted_button_id=U2SRGAFYXT32Q");
-        a2.addClass("templater_donating");
-        const img2 = document.createElement("img");
-        img2.src = "https://img.shields.io/badge/paypal-silentvoid13-yellow?style=social&logo=paypal";
-        a2.appendChild(img2);
-
-        s.settingEl.appendChild(a1);
-        s.settingEl.appendChild(a2);
     }
 }

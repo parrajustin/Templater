@@ -19,7 +19,7 @@ import {
     FunctionsMode,
 } from "./functions/FunctionsGenerator";
 import { errorWrapper, errorWrapperSync, TemplaterError } from "utils/Error";
-import { Parser } from "./parser/Parser";
+import { Parser } from "./parser/parser";
 import { log_error } from "utils/Log";
 
 export enum RunMode {

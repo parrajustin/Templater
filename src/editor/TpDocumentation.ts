@@ -1,7 +1,7 @@
 import { Settings } from "settings/Settings";
 import { errorWrapperSync } from "utils/Error";
 import { get_tfiles_from_folder } from "utils/Utils";
-import documentation from "../../docs/documentation.toml";
+import { DOCUMENTATION } from "./documentation";
 
 const module_names = [
     "config",
@@ -64,7 +64,7 @@ export function is_function_documentation(
 }
 
 export class Documentation {
-    public documentation: TpDocumentation = documentation;
+    public documentation: TpDocumentation = DOCUMENTATION as unknown as TpDocumentation;
 
     constructor(private settings: Settings) {}
 
@@ -112,7 +112,7 @@ export class Documentation {
         module_name: ModuleName,
         function_name: string
     ): TpFunctionDocumentation | null {
-        return this.documentation.tp[module_name].functions[function_name];
+        return this.documentation.tp[module_name].functions[function_name] as TpFunctionDocumentation | null;
     }
 
     get_argument_documentation(
@@ -127,6 +127,6 @@ export class Documentation {
         if (!function_doc || !function_doc.args) {
             return null;
         }
-        return function_doc.args[argument_name];
+        return function_doc.args[argument_name] as TpArgumentDocumentation | null;
     }
 }

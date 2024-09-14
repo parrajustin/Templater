@@ -1,10 +1,6 @@
 import { addIcon, Plugin } from "obsidian";
 
-import {
-    DEFAULT_SETTINGS,
-    Settings,
-    TemplaterSettingTab,
-} from "settings/Settings";
+import { DEFAULT_SETTINGS, Settings, TemplaterSettingTab } from "settings/Settings";
 import { FuzzySuggester } from "handlers/FuzzySuggester";
 import { ICON_DATA } from "utils/Constants";
 import { Templater } from "core/Templater";
@@ -31,11 +27,7 @@ export default class TemplaterPlugin extends Plugin {
 
         this.fuzzy_suggester = new FuzzySuggester(this);
 
-        this.event_handler = new EventHandler(
-            this,
-            this.templater,
-            this.settings
-        );
+        this.event_handler = new EventHandler(this, this.templater, this.settings);
         this.event_handler.setup();
 
         this.command_handler = new CommandHandler(this);
@@ -45,13 +37,24 @@ export default class TemplaterPlugin extends Plugin {
         this.addRibbonIcon("templater-icon", "Templater", async () => {
             this.fuzzy_suggester.insert_template();
         }).setAttribute("id", "rb-templater-icon");
-    
 
-        this.addSettingTab(new TemplaterSettingTab(this));
+        this.addSettingTab(new TemplaterSettingTab(this.app, this));
 
         // Files might not be created yet
-        app.workspace.onLayoutReady(() => {
+        this.app.workspace.onLayoutReady(() => {
             this.templater.execute_startup_scripts();
+        });
+
+        // type: string;
+        // // The description of the handler.
+        // desc: string;
+        // // Callback function handler.
+        // // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // func: (params: any) => Promise<{ ok: boolean; err?: string }>;
+        this.app.workspace.trigger("register-foreign-handler", {
+            type: "execute-template",
+            desc: "on the currently active file active the specified template.",
+            func: () => Promise.resolve({ ok: true })
         });
     }
 
@@ -65,10 +68,6 @@ export default class TemplaterPlugin extends Plugin {
     }
 
     async load_settings(): Promise<void> {
-        this.settings = Object.assign(
-            {},
-            DEFAULT_SETTINGS,
-            await this.loadData()
-        );
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 }
