@@ -51,3 +51,9 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Coverage
+coverage
+
+# dist fodler
+dist/**/*
