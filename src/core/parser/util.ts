@@ -1,4 +1,5 @@
-import { None, Option, Some } from "../../lib/option";
+import type { Option } from "../../lib/option";
+import { None, Some } from "../../lib/option";
 import { Whitespace } from "./parseTokens";
 
 /**
@@ -34,14 +35,14 @@ const WHITESPACE_TYPES = ["\r\n", "\n", "\r"];
 export function TrimWhitespace(
     content: string,
     whitespace: Option<Whitespace>,
-    trimEnd: boolean,
- ): string {
+    trimEnd: boolean
+): string {
     if (whitespace.none) {
         return content;
     }
-    if (trimEnd && whitespace.safeValue() === Whitespace.Multiple) {
+    if (trimEnd && whitespace.safeValue() === Whitespace.MULTIPLE) {
         return content.trimEnd();
-    } else if (!trimEnd && whitespace.safeValue() === Whitespace.Multiple) {
+    } else if (!trimEnd && whitespace.safeValue() === Whitespace.MULTIPLE) {
         return content.trimStart();
     } else if (trimEnd) {
         for (const whitespaceExample of WHITESPACE_TYPES) {

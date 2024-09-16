@@ -1,4 +1,5 @@
 import {
+    App,
     MarkdownPostProcessorContext,
     MarkdownView,
     normalizePath,
@@ -9,7 +10,7 @@ import {
 import {
     delay,
     generate_dynamic_command_regex,
-    get_active_file,
+    GetActiveFile,
     get_folder_path_from_file_path,
     resolve_tfile,
 } from "utils/Utils";
@@ -17,10 +18,12 @@ import TemplaterPlugin from "main";
 import {
     FunctionsGenerator,
     FunctionsMode,
-} from "./functions/FunctionsGenerator";
-import { errorWrapper, errorWrapperSync, TemplaterError } from "utils/Error";
+} from "./functions/functionsGenerator";
+import { ErrorWrapper, ErrorWrapperSync, TemplaterError } from "utils/Error";
 import { Parser } from "./parser/parser";
 import { log_error } from "utils/Log";
+import { InvalidArgumentError, StatusError } from "../lib/status_error";
+import { Err, Ok, Result } from "../lib/result";
 
 export enum RunMode {
     CreateNewFromTemplate,
@@ -31,84 +34,100 @@ export enum RunMode {
     StartupTemplate,
 }
 
-export type RunningConfig = {
-    template_file: TFile | undefined;
-    target_file: TFile;
-    run_mode: RunMode;
-    active_file?: TFile | null;
+/**
+ * Templater config for running data.
+ */
+export interface RunningConfig {
+    /** The template origin file. */
+    templateFile?: TFile;
+    /** Output target file. */
+    targetFile: TFile;
+    /** Run mode for the templater. */
+    runMode: RunMode;
+    /** Active obsidian file if any. */
+    activeFile?: TFile;
 };
 
 export class Templater {
+    /** The template parser. */
     public parser: Parser;
-    public functions_generator: FunctionsGenerator;
-    public current_functions_object: Record<string, unknown>;
-    public files_with_pending_templates: Set<string>;
+    /** Context generator for the parser. */
+    public functionsGenerator: FunctionsGenerator;
+    public currentFunctionsObject: Record<string, unknown>;
+    public filesWithPendingTemplates: Set<string>;
 
-    constructor(private plugin: TemplaterPlugin) {
-        this.functions_generator = new FunctionsGenerator(this.plugin);
+    constructor(private app: App, private plugin: TemplaterPlugin) {
+        this.functionsGenerator = new FunctionsGenerator(this.plugin);
         this.parser = new Parser();
     }
 
     async setup(): Promise<void> {
-        this.files_with_pending_templates = new Set();
+        this.filesWithPendingTemplates = new Set();
         await this.parser.init();
-        await this.functions_generator.init();
+        await this.functionsGenerator.init();
         this.plugin.registerMarkdownPostProcessor((el, ctx) =>
             this.process_dynamic_templates(el, ctx)
         );
     }
 
-    create_running_config(
-        template_file: TFile | undefined,
-        target_file: TFile,
-        run_mode: RunMode
+    /** Creates the parser running config based on the input. */
+    private createRunningConfig(
+        templateFile: TFile | undefined,
+        targetFile: TFile,
+        runMode: RunMode
     ): RunningConfig {
-        const active_file = get_active_file(app);
+        const activeFile = GetActiveFile(this.app);
 
         return {
-            template_file: template_file,
-            target_file: target_file,
-            run_mode: run_mode,
-            active_file: active_file,
+            templateFile,
+            targetFile,
+            runMode,
+            activeFile: activeFile.valueOr(undefined),
         };
     }
 
-    async read_and_parse_template(config: RunningConfig): Promise<string> {
-        const template_content = await app.vault.read(
-            config.template_file as TFile
+    /** Reads and parses the template returning the evaluated text content. */
+    private async readAndParseTemplate(config: RunningConfig): Promise<Result<string, StatusError>> {
+        const templateFile = config.templateFile;
+        if (templateFile === undefined) {
+            return Err(InvalidArgumentError("`readAndParseTemplate` requires `templateFile` input."));
+        }
+        const templateContent = await this.app.vault.read(
+            templateFile
         );
-        return this.parse_template(config, template_content);
+        return Ok(await this.parseTemplate(config, templateContent));
     }
 
-    async parse_template(
+    /** Parses the template and returns the evaluated text content. */
+    private async parseTemplate(
         config: RunningConfig,
-        template_content: string
+        templateContent: string
     ): Promise<string> {
-        const functions_object = await this.functions_generator.generate_object(
+        const functions_object = await this.functionsGenerator.generateObject(
             config,
             FunctionsMode.USER_INTERNAL
         );
-        this.current_functions_object = functions_object;
-        const content = await this.parser.parse_commands(
-            template_content,
+        this.currentFunctionsObject = functions_object;
+        const content = await this.parser.parseCommands(
+            templateContent,
             functions_object
         );
         return content;
     }
 
-    private start_templater_task(path: string) {
-        this.files_with_pending_templates.add(path);
+    private startTemplaterTask(path: string) {
+        this.filesWithPendingTemplates.add(path);
     }
 
     private async end_templater_task(path: string) {
-        this.files_with_pending_templates.delete(path);
-        if (this.files_with_pending_templates.size === 0) {
-            app.workspace.trigger("templater:all-templates-executed");
-            await this.functions_generator.teardown();
+        this.filesWithPendingTemplates.delete(path);
+        if (this.filesWithPendingTemplates.size === 0) {
+            this.app.workspace.trigger("templater:all-templates-executed");
+            await this.functionsGenerator.teardown();
         }
     }
 
-    async create_new_note_from_template(
+    async createNewNoteFromTemplate(
         template: TFile | string,
         folder?: TFolder | string,
         filename?: string,
@@ -116,20 +135,20 @@ export class Templater {
     ): Promise<TFile | undefined> {
         // TODO: Maybe there is an obsidian API function for that
         if (!folder) {
-            const new_file_location = app.vault.getConfig("newFileLocation");
+            const new_file_location = this.app.vault.getConfig("newFileLocation");
             switch (new_file_location) {
                 case "current": {
-                    const active_file = get_active_file(app);
+                    const active_file = GetActiveFile(this.app);
                     if (active_file) {
                         folder = active_file.parent;
                     }
                     break;
                 }
                 case "folder":
-                    folder = app.fileManager.getNewFileParent("");
+                    folder = this.app.fileManager.getNewFileParent("");
                     break;
                 case "root":
-                    folder = app.vault.getRoot();
+                    folder = this.app.vault.getRoot();
                     break;
                 default:
                     break;
@@ -138,7 +157,7 @@ export class Templater {
 
         const extension =
             template instanceof TFile ? template.extension || "md" : "md";
-        const created_note = await errorWrapper(async () => {
+        const created_note = await ErrorWrapper(async () => {
             const folderPath = folder instanceof TFolder ? folder.path : folder;
             const path = app.vault.getAvailablePath(
                 normalizePath(`${folderPath ?? ""}/${filename || "Untitled"}`),
@@ -159,27 +178,27 @@ export class Templater {
         }
 
         const { path } = created_note;
-        this.start_templater_task(path);
+        this.startTemplaterTask(path);
         let running_config: RunningConfig;
         let output_content: string;
         if (template instanceof TFile) {
-            running_config = this.create_running_config(
+            running_config = this.createRunningConfig(
                 template,
                 created_note,
                 RunMode.CreateNewFromTemplate
             );
-            output_content = await errorWrapper(
-                async () => this.read_and_parse_template(running_config),
+            output_content = await ErrorWrapper(
+                async () => this.readAndParseTemplate(running_config),
                 "Template parsing error, aborting."
             );
         } else {
-            running_config = this.create_running_config(
+            running_config = this.createRunningConfig(
                 undefined,
                 created_note,
                 RunMode.CreateNewFromTemplate
             );
-            output_content = await errorWrapper(
-                async () => this.parse_template(running_config, template),
+            output_content = await ErrorWrapper(
+                async () => this.parseTemplate(running_config, template),
                 "Template parsing error, aborting."
             );
         }
@@ -231,14 +250,14 @@ export class Templater {
             return;
         }
         const { path } = active_editor.file;
-        this.start_templater_task(path);
-        const running_config = this.create_running_config(
+        this.startTemplaterTask(path);
+        const running_config = this.createRunningConfig(
             template_file,
             active_editor.file,
             RunMode.AppendActiveFile
         );
-        const output_content = await errorWrapper(
-            async () => this.read_and_parse_template(running_config),
+        const output_content = await ErrorWrapper(
+            async () => this.readAndParseTemplate(running_config),
             "Template parsing error, aborting."
         );
         // errorWrapper failed
@@ -275,16 +294,16 @@ export class Templater {
         file: TFile
     ): Promise<void> {
         const { path } = file;
-        this.start_templater_task(path);
+        this.startTemplaterTask(path);
         const active_editor = app.workspace.activeEditor;
-        const active_file = get_active_file(app);
-        const running_config = this.create_running_config(
+        const active_file = GetActiveFile(app);
+        const running_config = this.createRunningConfig(
             template_file,
             file,
             RunMode.OverwriteFile
         );
-        const output_content = await errorWrapper(
-            async () => this.read_and_parse_template(running_config),
+        const output_content = await ErrorWrapper(
+            async () => this.readAndParseTemplate(running_config),
             "Template parsing error, aborting."
         );
         // errorWrapper failed
@@ -332,14 +351,14 @@ export class Templater {
         active_file = false
     ): Promise<void> {
         const { path } = file;
-        this.start_templater_task(path);
-        const running_config = this.create_running_config(
+        this.startTemplaterTask(path);
+        const running_config = this.createRunningConfig(
             file,
             file,
             active_file ? RunMode.OverwriteActiveFile : RunMode.OverwriteFile
         );
-        const output_content = await errorWrapper(
-            async () => this.read_and_parse_template(running_config),
+        const output_content = await ErrorWrapper(
+            async () => this.readAndParseTemplate(running_config),
             "Template parsing error, aborting."
         );
         // errorWrapper failed
@@ -383,24 +402,24 @@ export class Templater {
                     }
                     if (!pass) {
                         pass = true;
-                        const config = this.create_running_config(
+                        const config = this.createRunningConfig(
                             file,
                             file,
                             RunMode.DynamicProcessor
                         );
                         functions_object =
-                            await this.functions_generator.generate_object(
+                            await this.functionsGenerator.generateObject(
                                 config,
                                 FunctionsMode.USER_INTERNAL
                             );
-                        this.current_functions_object = functions_object;
+                        this.currentFunctionsObject = functions_object;
                     }
                 }
 
                 while (match != null) {
                     // Not the most efficient way to exclude the '+' from the command but I couldn't find something better
                     const complete_command = match[1] + match[2];
-                    const command_output: string = await errorWrapper(
+                    const command_output: string = await ErrorWrapper(
                         async () => {
                             return await this.parser.parse_commands(
                                 complete_command,
@@ -453,7 +472,7 @@ export class Templater {
 
         // Avoids template replacement when syncing template files
         const template_folder = normalizePath(
-            templater.plugin.settings.templates_folder
+            templater.plugin.settings.templatesFolder
         );
         if (file.path.includes(template_folder) && template_folder !== "/") {
             return;
@@ -464,7 +483,7 @@ export class Templater {
         await delay(300);
 
         // Avoids template replacement when creating file from template without content before delay
-        if (templater.files_with_pending_templates.has(file.path)) {
+        if (templater.filesWithPendingTemplates.has(file.path)) {
             return;
         }
 
@@ -477,7 +496,7 @@ export class Templater {
             if (!folder_template_match) {
                 return;
             }
-            const template_file: TFile = await errorWrapper(
+            const template_file: TFile = await ErrorWrapper(
                 async (): Promise<TFile> => {
                     return resolve_tfile(folder_template_match);
                 },
@@ -500,12 +519,12 @@ export class Templater {
         }
     }
 
-    async execute_startup_scripts(): Promise<void> {
+    public async executeStartupScripts(): Promise<void> {
         for (const template of this.plugin.settings.startup_templates) {
             if (!template) {
                 continue;
             }
-            const file = errorWrapperSync(
+            const file = ErrorWrapperSync(
                 () => resolve_tfile(template),
                 `Couldn't find startup template "${template}"`
             );
@@ -513,14 +532,14 @@ export class Templater {
                 continue;
             }
             const { path } = file;
-            this.start_templater_task(path);
-            const running_config = this.create_running_config(
+            this.startTemplaterTask(path);
+            const running_config = this.createRunningConfig(
                 file,
                 file,
                 RunMode.StartupTemplate
             );
-            await errorWrapper(
-                async () => this.read_and_parse_template(running_config),
+            await ErrorWrapper(
+                async () => this.readAndParseTemplate(running_config),
                 `Startup Template parsing error, aborting.`
             );
             await this.end_templater_task(path);

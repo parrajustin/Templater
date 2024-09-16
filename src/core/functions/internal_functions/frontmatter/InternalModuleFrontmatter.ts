@@ -1,17 +1,20 @@
-import { InternalModule } from "../InternalModule";
-import { ModuleName } from "editor/TpDocumentation";
+import { Ok, type StatusResult } from "../../../../lib/result";
+import type { StatusError } from "../../../../lib/status_error";
+import { InternalModule } from "../internalModule";
+import type { ModuleName } from "editor/tpDocumentation";
 
 export class InternalModuleFrontmatter extends InternalModule {
     public name: ModuleName = "frontmatter";
 
-    async create_static_templates(): Promise<void> {}
-
-    async create_dynamic_templates(): Promise<void> {
-        const cache = app.metadataCache.getFileCache(this.config.target_file);
-        this.dynamic_functions = new Map(
-            Object.entries(cache?.frontmatter || {})
-        );
+    public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
+        return Ok();
     }
 
-    async teardown(): Promise<void> {}
+    public override async createDynamicTemplates(): Promise<StatusResult<StatusError>> {
+        const cache = this.app.metadataCache.getFileCache(this.config.targetFile);
+        this.dynamicFunctions = new Map(Object.entries(cache?.frontmatter || {}));
+        return Ok();
+    }
+
+    public async teardown(): Promise<void> {}
 }

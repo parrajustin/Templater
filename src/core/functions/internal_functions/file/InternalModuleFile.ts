@@ -1,6 +1,6 @@
-import { InternalModule } from "../InternalModule";
-import { log_error } from "utils/Log";
-
+import { InternalModule } from "../internalModule";
+import { LogError } from "utils/log";
+import type { TFolder } from "obsidian";
 import {
     FileSystemAdapter,
     getAllTags,
@@ -8,142 +8,135 @@ import {
     parseLinktext,
     Platform,
     resolveSubpath,
-    TFile,
-    TFolder,
+    TFile
 } from "obsidian";
-import { TemplaterError } from "utils/Error";
-import { ModuleName } from "editor/TpDocumentation";
+import type { ModuleName } from "editor/tpDocumentation";
+import { Ok, type StatusResult } from "../../../../lib/result";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    type StatusError
+} from "../../../../lib/status_error";
 
 export const DEPTH_LIMIT = 10;
 
 export class InternalModuleFile extends InternalModule {
     public name: ModuleName = "file";
-    private include_depth = 0;
-    private create_new_depth = 0;
-    private linkpath_regex = new RegExp("^\\[\\[(.*)\\]\\]$");
+    private _includeDepth = 0;
+    private _createNewDepth = 0;
+    private _linkpathRegex = new RegExp("^\\[\\[(.*)\\]\\]$");
 
-    async create_static_templates(): Promise<void> {
-        this.static_functions.set(
-            "creation_date",
-            this.generate_creation_date()
-        );
-        this.static_functions.set("create_new", this.generate_create_new());
-        this.static_functions.set("cursor", this.generate_cursor());
-        this.static_functions.set(
-            "cursor_append",
-            this.generate_cursor_append()
-        );
-        this.static_functions.set("exists", this.generate_exists());
-        this.static_functions.set("find_tfile", this.generate_find_tfile());
-        this.static_functions.set("folder", this.generate_folder());
-        this.static_functions.set("include", this.generate_include());
-        this.static_functions.set(
-            "last_modified_date",
-            this.generate_last_modified_date()
-        );
-        this.static_functions.set("move", this.generate_move());
-        this.static_functions.set("path", this.generate_path());
-        this.static_functions.set("rename", this.generate_rename());
-        this.static_functions.set("selection", this.generate_selection());
+    public async teardown(): Promise<void> {}
+
+    public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
+        this.staticFunctions.set("creation_date", this.generateCreationDate());
+        this.staticFunctions.set("create_new", this.generateCreateNew());
+        this.staticFunctions.set("cursor", this.generateCursor());
+        this.staticFunctions.set("cursor_append", this.generateCursorAppend());
+        this.staticFunctions.set("exists", this.generateExists());
+        this.staticFunctions.set("find_tfile", this.generateFindTfile());
+        this.staticFunctions.set("folder", this.generateFolder());
+        this.staticFunctions.set("include", this.generateInclude());
+        this.staticFunctions.set("last_modified_date", this.generateLastModifiedDate());
+        this.staticFunctions.set("move", this.generateMove());
+        this.staticFunctions.set("path", this.generatePath());
+        this.staticFunctions.set("rename", this.generateRename());
+        this.staticFunctions.set("selection", this.generateSelection());
+        return Ok();
     }
 
-    async create_dynamic_templates(): Promise<void> {
-        this.dynamic_functions.set("content", await this.generate_content());
-        this.dynamic_functions.set("tags", this.generate_tags());
-        this.dynamic_functions.set("title", this.generate_title());
+    public override async createDynamicTemplates(): Promise<StatusResult<StatusError>> {
+        this.dynamicFunctions.set("content", await this.generateContent());
+        this.dynamicFunctions.set("tags", this.generateTags());
+        this.dynamicFunctions.set("title", this.generateTitle());
+        return Ok();
     }
 
-    async teardown(): Promise<void> {}
-
-    async generate_content(): Promise<string> {
-        return await app.vault.read(this.config.target_file);
+    private async generateContent(): Promise<string> {
+        return this.app.vault.read(this.config.targetFile);
     }
 
-    generate_create_new(): (
+    private generateCreateNew(): (
         template: TFile | string,
         filename: string,
-        open_new: boolean,
+        openNew: boolean,
         folder?: TFolder | string
     ) => Promise<TFile | undefined> {
         return async (
             template: TFile | string,
             filename: string,
-            open_new = false,
+            openNew = false,
             folder?: TFolder | string
         ) => {
-            this.create_new_depth += 1;
-            if (this.create_new_depth > DEPTH_LIMIT) {
-                this.create_new_depth = 0;
-                throw new TemplaterError(
-                    "Reached create_new depth limit (max = 10)"
-                );
+            this._createNewDepth += 1;
+            if (this._createNewDepth > DEPTH_LIMIT) {
+                this._createNewDepth = 0;
+                throw InvalidArgumentError("Reached create_new depth limit (max = 10)");
             }
 
-            const new_file =
-                await this.plugin.templater.create_new_note_from_template(
-                    template,
-                    folder,
-                    filename,
-                    open_new
-                );
+            const newFile = await this.plugin.templater.createNewNoteFromTemplate(
+                template,
+                folder,
+                filename,
+                openNew
+            );
 
-            this.create_new_depth -= 1;
+            this._createNewDepth -= 1;
 
-            return new_file;
+            return newFile;
         };
     }
 
-    generate_creation_date(): (format?: string) => string {
+    private generateCreationDate(): (format?: string) => string {
         return (format = "YYYY-MM-DD HH:mm") => {
-            return window
-                .moment(this.config.target_file.stat.ctime)
-                .format(format);
+            return window.moment(this.config.targetFile.stat.ctime).format(format);
         };
     }
 
-    generate_cursor(): (order?: number) => string {
+    private generateCursor(): (order?: number) => string {
         return (order?: number) => {
             // Hack to prevent empty output
             return `<% tp.file.cursor(${order ?? ""}) %>`;
         };
     }
 
-    generate_cursor_append(): (content: string) => void {
+    private generateCursorAppend(): (content: string) => void {
         return (content: string): string | undefined => {
-            const active_editor = app.workspace.activeEditor;
-            if (!active_editor || !active_editor.editor) {
-                log_error(
-                    new TemplaterError(
-                        "No active editor, can't append to cursor."
-                    )
-                );
+            const activeEditor = this.app.workspace.activeEditor;
+            if (!activeEditor || !activeEditor.editor) {
+                LogError(NotFoundError("No active editor, can't append to cursor."));
                 return;
             }
 
-            const editor = active_editor.editor;
+            const editor = activeEditor.editor;
             const doc = editor.getDoc();
             doc.replaceSelection(content);
             return "";
         };
     }
 
-    generate_exists(): (filepath: string) => Promise<boolean> {
+    private generateExists(): (filepath: string) => Promise<boolean> {
         return async (filepath: string) => {
             const path = normalizePath(filepath);
-            return await app.vault.exists(path);
+            return this.app.vault.exists(path);
         };
     }
 
-    generate_find_tfile(): (filename: string) => TFile | null {
+    private generateFindTfile(): (filename: string) => TFile | null {
         return (filename: string) => {
             const path = normalizePath(filename);
-            return app.metadataCache.getFirstLinkpathDest(path, "");
+            return this.app.metadataCache.getFirstLinkpathDest(path, "");
         };
     }
 
-    generate_folder(): (relative?: boolean) => string {
+    private generateFolder(): (relative?: boolean) => string | undefined {
         return (relative = false) => {
-            const parent = this.config.target_file.parent;
+            const parent = this.config.targetFile.parent;
+            if (parent === null) {
+                return undefined;
+            }
+
             let folder;
 
             if (relative) {
@@ -156,50 +149,46 @@ export class InternalModuleFile extends InternalModule {
         };
     }
 
-    generate_include(): (include_link: string | TFile) => Promise<string> {
-        return async (include_link: string | TFile) => {
+    private generateInclude(): (include_link: string | TFile) => Promise<string> {
+        return async (includeLink: string | TFile) => {
             // TODO: Add mutex for this, this may currently lead to a race condition.
             // While not very impactful, that could still be annoying.
-            this.include_depth += 1;
-            if (this.include_depth > DEPTH_LIMIT) {
-                this.include_depth -= 1;
-                throw new TemplaterError(
-                    "Reached inclusion depth limit (max = 10)"
-                );
+            this._includeDepth += 1;
+            if (this._includeDepth > DEPTH_LIMIT) {
+                this._includeDepth -= 1;
+                throw InvalidArgumentError("Reached inclusion depth limit (max = 10)");
             }
 
-            let inc_file_content: string;
+            let incFileContent: string;
 
-            if (include_link instanceof TFile) {
-                inc_file_content = await app.vault.read(include_link);
+            if (includeLink instanceof TFile) {
+                incFileContent = await this.app.vault.read(includeLink);
             } else {
-                let match;
-                if ((match = this.linkpath_regex.exec(include_link)) === null) {
-                    this.include_depth -= 1;
-                    throw new TemplaterError(
+                const match = this._linkpathRegex.exec(includeLink);
+                if (match === null) {
+                    this._includeDepth -= 1;
+                    throw InvalidArgumentError(
                         "Invalid file format, provide an obsidian link between quotes."
                     );
                 }
-                const { path, subpath } = parseLinktext(match[1]);
-
-                const inc_file = app.metadataCache.getFirstLinkpathDest(
-                    path,
-                    ""
-                );
-                if (!inc_file) {
-                    this.include_depth -= 1;
-                    throw new TemplaterError(
-                        `File ${include_link} doesn't exist`
-                    );
+                if (match.length < 2) {
+                    throw InternalError("Not enough entries in regex match.");
                 }
-                inc_file_content = await app.vault.read(inc_file);
+                const { path, subpath } = parseLinktext(match[1] as string);
+
+                const incFile = this.app.metadataCache.getFirstLinkpathDest(path, "");
+                if (!incFile) {
+                    this._includeDepth -= 1;
+                    throw NotFoundError(`File ${includeLink} doesn't exist`);
+                }
+                incFileContent = await this.app.vault.read(incFile);
 
                 if (subpath) {
-                    const cache = app.metadataCache.getFileCache(inc_file);
+                    const cache = this.app.metadataCache.getFileCache(incFile);
                     if (cache) {
                         const result = resolveSubpath(cache, subpath);
                         if (result) {
-                            inc_file_content = inc_file_content.slice(
+                            incFileContent = incFileContent.slice(
                                 result.start.offset,
                                 result.end?.offset
                             );
@@ -208,103 +197,94 @@ export class InternalModuleFile extends InternalModule {
                 }
             }
 
-            try {
-                const parsed_content =
-                    await this.plugin.templater.parser.parse_commands(
-                        inc_file_content,
-                        this.plugin.templater.current_functions_object
-                    );
-                this.include_depth -= 1;
-                return parsed_content;
-            } catch (e) {
-                this.include_depth -= 1;
-                throw e;
+            const parsedContent = await this.plugin.templater.parser.parseCommands(
+                incFileContent,
+                this.plugin.templater.currentFunctionsObject
+            );
+            this._includeDepth -= 1;
+            if (parsedContent.ok) {
+                return parsedContent.val;
             }
+            throw parsedContent.val;
         };
     }
 
-    generate_last_modified_date(): (format?: string) => string {
+    private generateLastModifiedDate(): (format?: string) => string {
         return (format = "YYYY-MM-DD HH:mm"): string => {
-            return window
-                .moment(this.config.target_file.stat.mtime)
-                .format(format);
+            return window.moment(this.config.targetFile.stat.mtime).format(format);
         };
     }
 
-    generate_move(): (path: string, file_to_move?: TFile) => Promise<string> {
-        return async (path: string, file_to_move?: TFile) => {
-            const file = file_to_move || this.config.target_file;
-            const new_path = normalizePath(`${path}.${file.extension}`);
-            const dirs = new_path.replace(/\\/g, "/").split("/");
+    private generateMove(): (path: string, file_to_move?: TFile) => Promise<string> {
+        return async (path: string, fileToMove?: TFile) => {
+            const file = fileToMove || this.config.targetFile;
+            const newPath = normalizePath(`${path}.${file.extension}`);
+            const dirs = newPath.replace(/\\/g, "/").split("/");
             dirs.pop(); // remove basename
             if (dirs.length) {
                 const dir = dirs.join("/");
-                if (!window.app.vault.getAbstractFileByPath(dir)) {
-                    await window.app.vault.createFolder(dir);
+                const parentFolder = this.app.vault.getAbstractFileByPath(dir);
+                if (parentFolder === null) {
+                    await this.app.vault.createFolder(dir);
                 }
             }
-            await app.fileManager.renameFile(file, new_path);
+            await this.app.fileManager.renameFile(file, newPath);
             return "";
         };
     }
 
-    generate_path(): (relative: boolean) => string {
+    private generatePath(): (relative: boolean) => string {
         return (relative = false) => {
-            let vault_path = "";
+            let vaultPath = "";
             if (Platform.isMobileApp) {
-                const vault_adapter = app.vault.adapter.fs.uri;
-                const vault_base = app.vault.adapter.basePath;
-                vault_path = `${vault_adapter}/${vault_base}`;
+                const vaultAdapter = this.app.vault.adapter.fs.uri;
+                const vaultBase = this.app.vault.adapter.basePath;
+                vaultPath = `${vaultAdapter}/${vaultBase}`;
             } else {
-                if (app.vault.adapter instanceof FileSystemAdapter) {
-                    vault_path = app.vault.adapter.getBasePath();
+                if (this.app.vault.adapter instanceof FileSystemAdapter) {
+                    vaultPath = this.app.vault.adapter.getBasePath();
                 } else {
-                    throw new TemplaterError(
-                        "app.vault is not a FileSystemAdapter instance"
-                    );
+                    throw InternalError("app.vault is not a FileSystemAdapter instance");
                 }
             }
 
             if (relative) {
-                return this.config.target_file.path;
-            } else {
-                return `${vault_path}/${this.config.target_file.path}`;
+                return this.config.targetFile.path;
             }
+            return `${vaultPath}/${this.config.targetFile.path}`;
         };
     }
 
-    generate_rename(): (new_title: string) => Promise<string> {
-        return async (new_title: string) => {
-            if (new_title.match(/[\\/:]+/g)) {
-                throw new TemplaterError(
+    private generateRename(): (new_title: string) => Promise<string> {
+        return async (newTitle: string) => {
+            if (newTitle.match(/[\\/:]+/g)) {
+                throw InvalidArgumentError(
                     "File name cannot contain any of these characters: \\ / :"
                 );
             }
-            const new_path = normalizePath(
-                `${this.config.target_file.parent.path}/${new_title}.${this.config.target_file.extension}`
+            const newPath = normalizePath(
+                `${this.config.targetFile.parent?.path}/${newTitle}.${this.config.targetFile.extension}`
             );
-            await app.fileManager.renameFile(this.config.target_file, new_path);
+            await this.app.fileManager.renameFile(this.config.targetFile, newPath);
             return "";
         };
     }
 
-    generate_selection(): () => string {
+    private generateSelection(): () => string {
         return () => {
-            const active_editor = app.workspace.activeEditor;
-            if (!active_editor || !active_editor.editor) {
-                throw new TemplaterError(
-                    "Active editor is null, can't read selection."
-                );
+            const activeEditor = this.app.workspace.activeEditor;
+            if (!activeEditor || !activeEditor.editor) {
+                throw NotFoundError("Active editor is null, can't read selection.");
             }
 
-            const editor = active_editor.editor;
+            const editor = activeEditor.editor;
             return editor.getSelection();
         };
     }
 
     // TODO: Turn this into a function
-    generate_tags(): string[] | null {
-        const cache = app.metadataCache.getFileCache(this.config.target_file);
+    private generateTags(): string[] | null {
+        const cache = this.app.metadataCache.getFileCache(this.config.targetFile);
 
         if (cache) {
             return getAllTags(cache);
@@ -313,7 +293,7 @@ export class InternalModuleFile extends InternalModule {
     }
 
     // TODO: Turn this into a function
-    generate_title(): string {
-        return this.config.target_file.basename;
+    private generateTitle(): string {
+        return this.config.targetFile.basename;
     }
 }

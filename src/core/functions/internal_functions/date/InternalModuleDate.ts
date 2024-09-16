@@ -1,39 +1,41 @@
-import { TemplaterError } from "utils/Error";
-import { InternalModule } from "../InternalModule";
-import { ModuleName } from "editor/TpDocumentation";
+import { Ok, type StatusResult } from "../../../../lib/result";
+import type { StatusError } from "../../../../lib/status_error";
+import { InvalidArgumentError } from "../../../../lib/status_error";
+import { InternalModule } from "../internalModule";
+import type { ModuleName } from "editor/tpDocumentation";
 
 export class InternalModuleDate extends InternalModule {
     public name: ModuleName = "date";
 
-    async create_static_templates(): Promise<void> {
-        this.static_functions.set("now", this.generate_now());
-        this.static_functions.set("tomorrow", this.generate_tomorrow());
-        this.static_functions.set("weekday", this.generate_weekday());
-        this.static_functions.set("yesterday", this.generate_yesterday());
+    public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
+        this.staticFunctions.set("now", this.generateNow());
+        this.staticFunctions.set("tomorrow", this.generateTomorrow());
+        this.staticFunctions.set("weekday", this.generateWeekday());
+        this.staticFunctions.set("yesterday", this.generateYesterday());
+        return Ok();
     }
 
-    async create_dynamic_templates(): Promise<void> {}
+    public override async createDynamicTemplates(): Promise<StatusResult<StatusError>> {
+        return Ok();
+    }
 
-    async teardown(): Promise<void> {}
+    public override async teardown(): Promise<void> {}
 
-    generate_now(): (
+    private generateNow(): (
         format?: string,
         offset?: number | string,
         reference?: string,
-        reference_format?: string
+        referenceFormat?: string
     ) => string {
         return (
             format = "YYYY-MM-DD",
             offset?: number | string,
             reference?: string,
-            reference_format?: string
+            referenceFormat?: string
         ) => {
-            if (
-                reference &&
-                !window.moment(reference, reference_format).isValid()
-            ) {
-                throw new TemplaterError(
-                    "Invalid reference date format, try specifying one with the argument 'reference_format'"
+            if (reference !== undefined && !window.moment(reference, referenceFormat).isValid()) {
+                throw InvalidArgumentError(
+                    `Invalid reference date format, try specifying one with the argument 'referenceFormat'`
                 );
             }
             let duration;
@@ -43,20 +45,17 @@ export class InternalModuleDate extends InternalModule {
                 duration = window.moment.duration(offset, "days");
             }
 
-            return window
-                .moment(reference, reference_format)
-                .add(duration)
-                .format(format);
+            return window.moment(reference, referenceFormat).add(duration).format(format);
         };
     }
 
-    generate_tomorrow(): (format?: string) => string {
+    private generateTomorrow(): (format?: string) => string {
         return (format = "YYYY-MM-DD") => {
             return window.moment().add(1, "days").format(format);
         };
     }
 
-    generate_weekday(): (
+    private generateWeekday(): (
         format: string,
         weekday: number,
         reference?: string,
@@ -66,24 +65,18 @@ export class InternalModuleDate extends InternalModule {
             format = "YYYY-MM-DD",
             weekday: number,
             reference?: string,
-            reference_format?: string
+            referenceFormat?: string
         ) => {
-            if (
-                reference &&
-                !window.moment(reference, reference_format).isValid()
-            ) {
-                throw new TemplaterError(
-                    "Invalid reference date format, try specifying one with the argument 'reference_format'"
+            if (reference !== undefined && !window.moment(reference, referenceFormat).isValid()) {
+                throw InvalidArgumentError(
+                    "Invalid reference date format, try specifying one with the argument 'referenceFormat'"
                 );
             }
-            return window
-                .moment(reference, reference_format)
-                .weekday(weekday)
-                .format(format);
+            return window.moment(reference, referenceFormat).weekday(weekday).format(format);
         };
     }
 
-    generate_yesterday(): (format?: string) => string {
+    private generateYesterday(): (format?: string) => string {
         return (format = "YYYY-MM-DD") => {
             return window.moment().add(-1, "days").format(format);
         };

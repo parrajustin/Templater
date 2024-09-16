@@ -23,7 +23,7 @@ const config = tseslint.config({
         "no-unneeded-ternary": "warn",
         "one-var-declaration-per-line": ["warn", "always"],
         "operator-assignment": ["warn", "always"],
-        "operator-linebreak": ["warn", "none"],
+        "operator-linebreak": ["warn", "off"],
         "no-else-return": "warn",
         camelcase: ["error", { properties: "always" }],
         "@typescript-eslint/no-unused-vars": [

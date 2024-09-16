@@ -7,7 +7,7 @@ import {
     TFile,
     TFolder
 } from "obsidian";
-import { errorWrapperSync, TemplaterError } from "utils/Error";
+import { ErrorWrapperSync, TemplaterError } from "utils/Error";
 import TemplaterPlugin from "main";
 import { arraymove, get_tfiles_from_folder } from "utils/Utils";
 import { log_error } from "utils/Log";
@@ -18,10 +18,10 @@ export interface FolderTemplate {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-    command_timeout: 5,
-    templates_folder: "",
-    templates_pairs: [["", ""]],
-    trigger_on_file_creation: false,
+    commandTimeout: 5,
+    templatesFolder: "",
+    templatesPairs: [["", ""]],
+    triggerOnFileCreation: false,
     auto_jump_to_cursor: false,
     enable_system_commands: false,
     shell_path: "",
@@ -35,10 +35,10 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export interface Settings {
-    command_timeout: number;
-    templates_folder: string;
-    templates_pairs: Array<[string, string]>;
-    trigger_on_file_creation: boolean;
+    commandTimeout: number;
+    templatesFolder: string;
+    templatesPairs: Array<[string, string]>;
+    triggerOnFileCreation: boolean;
     auto_jump_to_cursor: boolean;
     enable_system_commands: boolean;
     shell_path: string;
@@ -67,7 +67,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
         this.add_auto_jump_to_cursor();
         this.add_trigger_on_new_file_creation_setting();
         this.add_templates_hotkeys_setting();
-        if (this.plugin.settings.trigger_on_file_creation) {
+        if (this.plugin.settings.triggerOnFileCreation) {
             this.add_folder_templates_setting();
         }
         this.add_startup_templates_setting();
@@ -86,8 +86,8 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         cb.addOption(folder.path, folder.path);
                     }
                 });
-                cb.setValue(this.plugin.settings.templates_folder).onChange((new_folder) => {
-                    this.plugin.settings.templates_folder = new_folder;
+                cb.setValue(this.plugin.settings.templatesFolder).onChange((new_folder) => {
+                    this.plugin.settings.templatesFolder = new_folder;
                     this.plugin.save_settings();
                 });
                 cb.selectEl.addClass("templater_search");
@@ -192,9 +192,9 @@ export class TemplaterSettingTab extends PluginSettingTab {
             .setDesc(desc)
             .addToggle((toggle) => {
                 toggle
-                    .setValue(this.plugin.settings.trigger_on_file_creation)
+                    .setValue(this.plugin.settings.triggerOnFileCreation)
                     .onChange((trigger_on_file_creation) => {
-                        this.plugin.settings.trigger_on_file_creation = trigger_on_file_creation;
+                        this.plugin.settings.triggerOnFileCreation = trigger_on_file_creation;
                         this.plugin.save_settings();
                         this.plugin.event_handler.update_trigger_file_on_creation();
                         // Force refresh
@@ -546,7 +546,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
         if (!this.plugin.settings.user_scripts_folder) {
             name = "No user scripts folder set";
         } else {
-            const files = errorWrapperSync(
+            const files = ErrorWrapperSync(
                 () => get_tfiles_from_folder(this.plugin.settings.user_scripts_folder),
                 `User scripts folder doesn't exist`
             );
@@ -614,14 +614,14 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 .setDesc("Maximum timeout in seconds for a system command.")
                 .addText((text) => {
                     text.setPlaceholder("Timeout")
-                        .setValue(this.plugin.settings.command_timeout.toString())
+                        .setValue(this.plugin.settings.commandTimeout.toString())
                         .onChange((new_value) => {
                             const new_timeout = Number(new_value);
                             if (isNaN(new_timeout)) {
                                 log_error(new TemplaterError("Timeout must be a number"));
                                 return;
                             }
-                            this.plugin.settings.command_timeout = new_timeout;
+                            this.plugin.settings.commandTimeout = new_timeout;
                             this.plugin.save_settings();
                         });
                 });
@@ -647,7 +647,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 });
 
             let i = 1;
-            this.plugin.settings.templates_pairs.forEach((template_pair) => {
+            this.plugin.settings.templatesPairs.forEach((template_pair) => {
                 const div = this.containerEl.createEl("div");
                 div.addClass("templater_div");
 
@@ -663,9 +663,9 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             .setTooltip("Delete")
                             .onClick(() => {
                                 const index =
-                                    this.plugin.settings.templates_pairs.indexOf(template_pair);
+                                    this.plugin.settings.templatesPairs.indexOf(template_pair);
                                 if (index > -1) {
-                                    this.plugin.settings.templates_pairs.splice(index, 1);
+                                    this.plugin.settings.templatesPairs.splice(index, 1);
                                     this.plugin.save_settings();
                                     // Force refresh
                                     this.display();
@@ -678,10 +678,10 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             .setValue(template_pair[0])
                             .onChange((new_value) => {
                                 const index =
-                                    this.plugin.settings.templates_pairs.indexOf(template_pair);
+                                    this.plugin.settings.templatesPairs.indexOf(template_pair);
                                 if (index > -1) {
                                     (
-                                        this.plugin.settings.templates_pairs[index] as [
+                                        this.plugin.settings.templatesPairs[index] as [
                                             string,
                                             string
                                         ]
@@ -699,10 +699,10 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             .setValue(template_pair[1])
                             .onChange((new_cmd) => {
                                 const index =
-                                    this.plugin.settings.templates_pairs.indexOf(template_pair);
+                                    this.plugin.settings.templatesPairs.indexOf(template_pair);
                                 if (index > -1) {
                                     (
-                                        this.plugin.settings.templates_pairs[index] as [
+                                        this.plugin.settings.templatesPairs[index] as [
                                             string,
                                             string
                                         ]
@@ -733,7 +733,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setButtonText("Add new user function")
                     .setCta()
                     .onClick(() => {
-                        this.plugin.settings.templates_pairs.push(["", ""]);
+                        this.plugin.settings.templatesPairs.push(["", ""]);
                         this.plugin.save_settings();
                         // Force refresh
                         this.display();

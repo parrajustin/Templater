@@ -15,7 +15,7 @@ import {
     ModuleName,
     TpFunctionDocumentation,
     TpSuggestDocumentation,
-} from "./TpDocumentation";
+} from "./tpDocumentation";
 
 export class Autocomplete extends EditorSuggest<TpSuggestDocumentation> {
     //private in_command = false;

@@ -1,69 +1,70 @@
-import { TemplaterError } from "utils/Error";
-import { InternalModule } from "../InternalModule";
-import { ModuleName } from "editor/TpDocumentation";
+import type { StatusResult } from "../../../../lib/result";
+import { Ok } from "../../../../lib/result";
+import { InternalError, StatusError, UnavailableError } from "../../../../lib/status_error";
+import { LogError } from "../../../../utils/log";
+import { InternalModule } from "../internalModule";
+import type { ModuleName } from "editor/tpDocumentation";
 
 export class InternalModuleWeb extends InternalModule {
     name: ModuleName = "web";
 
-    async create_static_templates(): Promise<void> {
-        this.static_functions.set("daily_quote", this.generate_daily_quote());
-        this.static_functions.set("request", this.generate_request());
-        this.static_functions.set(
-            "random_picture",
-            this.generate_random_picture()
-        );
+    public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
+        this.staticFunctions.set("daily_quote", this.generateDailyQuote());
+        this.staticFunctions.set("request", this.generateRequest());
+        this.staticFunctions.set("random_picture", this.generateRandomPicture());
+        return Ok();
     }
 
-    async create_dynamic_templates(): Promise<void> {}
+    public override async createDynamicTemplates(): Promise<StatusResult<StatusError>> {
+        return Ok();
+    }
 
-    async teardown(): Promise<void> {}
+    public override async teardown(): Promise<void> {}
 
-    async getRequest(url: string): Promise<Response> {
+    private async getRequest(url: string): Promise<Response> {
         try {
             const response = await fetch(url);
             if (!response.ok) {
-                throw new TemplaterError("Error performing GET request");
+                throw UnavailableError("Error performing GET request");
             }
             return response;
-        } catch (error) {
-            throw new TemplaterError("Error performing GET request");
+        } catch (_error) {
+            throw UnavailableError("Error performing GET request");
         }
     }
 
-    generate_daily_quote(): () => Promise<string> {
+    private generateDailyQuote(): () => Promise<string> {
         return async () => {
             try {
-                const response = await this.getRequest(
-                    "https://api.quotable.io/random"
-                );
+                const response = await this.getRequest("https://zenquotes.io/api/today");
                 const json = await response.json();
 
                 const author = json.author;
                 const quote = json.content;
-                const new_content = `> [!quote] ${quote}\n> — ${author}`;
+                const newContent = `> [!quote] ${quote}\n> — ${author}`;
 
-                return new_content;
-            } catch (error) {
-                new TemplaterError("Error generating daily quote");
+                return newContent;
+            } catch (_error) {
+                if (_error instanceof StatusError) {
+                    LogError(_error);
+                }
                 return "Error generating daily quote";
             }
         };
     }
 
-    generate_random_picture(): (
+    private generateRandomPicture(): (
         size: string,
         query?: string,
-        include_size?: boolean
+        includeSize?: boolean
     ) => Promise<string> {
-        return async (size: string, query?: string, include_size = false) => {
+        return async (size: string, query?: string, includeSize = false) => {
             try {
                 const response = await this.getRequest(
-                    `https://templater-unsplash-2.fly.dev/${
-                        query ? "?q=" + query : ""
-                    }`
+                    `https://templater-unsplash-2.fly.dev/${query ? "?q=" + query : ""}`
                 ).then((res) => res.json());
                 let url = response.full;
-                if (size && !include_size) {
+                if (size && !includeSize) {
                     if (size.includes("x")) {
                         const [width, height] = size.split("x");
                         url = url.concat(`&w=${width}&h=${height}`);
@@ -71,39 +72,42 @@ export class InternalModuleWeb extends InternalModule {
                         url = url.concat(`&w=${size}`);
                     }
                 }
-                if (include_size) {
+                if (includeSize) {
                     return `![photo by ${response.photog}(${response.photogUrl}) on Unsplash|${size}](${url})`;
                 }
                 return `![photo by ${response.photog}(${response.photogUrl}) on Unsplash](${url})`;
             } catch (error) {
-                new TemplaterError("Error generating random picture");
+                console.error(error);
                 return "Error generating random picture";
             }
         };
     }
 
-    generate_request(): (url: string, path?: string) => Promise<string> {
+    private generateRequest(): (url: string, path?: string) => Promise<string> {
         return async (url: string, path?: string) => {
             try {
                 const response = await this.getRequest(url);
                 const jsonData = await response.json();
 
-                if (path && jsonData) {
+                if (path !== undefined && jsonData !== undefined && jsonData !== null) {
                     return path.split(".").reduce((obj, key) => {
-                        if (obj && obj.hasOwnProperty(key)) {
+                        if (
+                            obj !== undefined &&
+                            (Object.prototype.hasOwnProperty.call(obj, key) as boolean)
+                        ) {
                             return obj[key];
-                        } else {
-                            throw new Error(
-                                `Path ${path} not found in the JSON response`
-                            );
                         }
+                        throw InternalError(`Path ${path} not found in the JSON response`);
                     }, jsonData);
                 }
 
                 return jsonData;
             } catch (error) {
+                if (error instanceof StatusError) {
+                    LogError(error);
+                }
                 console.error(error);
-                throw new TemplaterError("Error fetching and extracting value");
+                throw UnavailableError("Error fetching and extracting value");
             }
         };
     }

@@ -3,7 +3,7 @@ import { addIcon, Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, Settings, TemplaterSettingTab } from "settings/Settings";
 import { FuzzySuggester } from "handlers/FuzzySuggester";
 import { ICON_DATA } from "utils/Constants";
-import { Templater } from "core/Templater";
+import { Templater } from "core/templater";
 import EventHandler from "handlers/EventHandler";
 import { CommandHandler } from "handlers/CommandHandler";
 import { Editor } from "editor/Editor";
@@ -42,7 +42,7 @@ export default class TemplaterPlugin extends Plugin {
 
         // Files might not be created yet
         this.app.workspace.onLayoutReady(() => {
-            this.templater.execute_startup_scripts();
+            this.templater.executeStartupScripts();
         });
 
         // type: string;
@@ -60,7 +60,7 @@ export default class TemplaterPlugin extends Plugin {
 
     onunload(): void {
         // Failsafe in case teardown doesn't happen immediately after template execution
-        this.templater.functions_generator.teardown();
+        this.templater.functionsGenerator.teardown();
     }
 
     async save_settings(): Promise<void> {

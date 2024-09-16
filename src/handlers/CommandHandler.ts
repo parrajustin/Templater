@@ -1,6 +1,6 @@
 import TemplaterPlugin from "main";
 import { resolve_tfile } from "utils/Utils";
-import { errorWrapperSync } from "utils/Error";
+import { ErrorWrapperSync } from "utils/Error";
 
 export class CommandHandler {
     constructor(private plugin: TemplaterPlugin) {}
@@ -89,7 +89,7 @@ export class CommandHandler {
                 name: `Insert ${new_template}`,
                 icon: "templater-icon",
                 callback: () => {
-                    const template = errorWrapperSync(
+                    const template = ErrorWrapperSync(
                         () => resolve_tfile(new_template),
                         `Couldn't find the template file associated with this hotkey`
                     );

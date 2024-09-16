@@ -1,5 +1,5 @@
 import { Settings } from "settings/Settings";
-import { errorWrapperSync } from "utils/Error";
+import { ErrorWrapperSync } from "utils/Error";
 import { get_tfiles_from_folder } from "utils/Utils";
 import { DOCUMENTATION } from "./documentation";
 
@@ -77,7 +77,7 @@ export class Documentation {
     ): TpFunctionDocumentation[] | undefined {
         if (module_name === "user") {
             if (!this.settings || !this.settings.user_scripts_folder) return;
-            const files = errorWrapperSync(
+            const files = ErrorWrapperSync(
                 () => get_tfiles_from_folder(this.settings.user_scripts_folder),
                 `User Scripts folder doesn't exist`
             );

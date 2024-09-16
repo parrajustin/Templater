@@ -1,41 +1,43 @@
-import { EventRef } from "obsidian";
-import { ModuleName } from "editor/TpDocumentation";
-import { delay } from "utils/Utils";
-import { InternalModule } from "../InternalModule";
+import type { EventRef } from "obsidian";
+import type { ModuleName } from "editor/tpDocumentation";
+import { Delay } from "utils/utils";
+import { InternalModule } from "../internalModule";
+import type { StatusResult } from "../../../../lib/result";
+import { Ok } from "../../../../lib/result";
+import type { StatusError } from "../../../../lib/status_error";
 
 export class InternalModuleHooks extends InternalModule {
     public name: ModuleName = "hooks";
-    private event_refs: EventRef[] = [];
+    private _eventRefs: EventRef[] = [];
 
-    async create_static_templates(): Promise<void> {
-        this.static_functions.set(
+    public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
+        this.staticFunctions.set(
             "on_all_templates_executed",
-            this.generate_on_all_templates_executed()
+            this.generateOnAllTemplatesExecuted()
         );
+        return Ok();
     }
 
-    async create_dynamic_templates(): Promise<void> {}
+    public override async createDynamicTemplates(): Promise<StatusResult<StatusError>> {
+        return Ok();
+    }
 
-    async teardown(): Promise<void> {
-        this.event_refs.forEach((eventRef) => {
+    public override async teardown(): Promise<void> {
+        this._eventRefs.forEach((eventRef) => {
             eventRef.e.offref(eventRef);
         });
-        this.event_refs = [];
+        this._eventRefs = [];
     }
 
-    generate_on_all_templates_executed(): (
-        callback_function: () => unknown
-    ) => void {
-        return (callback_function) => {
-            const event_ref = app.workspace.on(
-                "templater:all-templates-executed",
-                async () => {
-                    await delay(1);
-                    callback_function();
-                }
-            );
-            if (event_ref) {
-                this.event_refs.push(event_ref);
+    private generateOnAllTemplatesExecuted(): (callbackFunction: () => unknown) => void {
+        return (callbackFunction) => {
+            const eventRef = this.app.workspace.on("templater:all-templates-executed", async () => {
+                await Delay(1);
+                callbackFunction();
+            });
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
+            if (eventRef) {
+                this._eventRefs.push(eventRef);
             }
         };
     }

@@ -4,7 +4,7 @@ import TemplaterPlugin from "main";
 import { TemplaterError } from "utils/Error";
 import { CursorJumper } from "editor/CursorJumper";
 import { log_error } from "utils/Log";
-import { get_active_file } from "utils/Utils";
+import { GetActiveFile } from "utils/Utils";
 import { Autocomplete } from "editor/Autocomplete";
 
 import "editor/mode/javascript";
@@ -102,7 +102,7 @@ export class Editor {
         if (auto_jump && !this.plugin.settings.auto_jump_to_cursor) {
             return;
         }
-        if (file && get_active_file(this.plugin.app) !== file) {
+        if (file && GetActiveFile(this.plugin.app) !== file) {
             return;
         }
         await this.cursor_jumper.jump_to_next_cursor_location();

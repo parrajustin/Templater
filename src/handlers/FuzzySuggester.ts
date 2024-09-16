@@ -1,7 +1,7 @@
 import { FuzzySuggestModal, TFile, TFolder } from "obsidian";
 import { get_tfiles_from_folder } from "utils/Utils";
 import TemplaterPlugin from "main";
-import { errorWrapperSync } from "utils/Error";
+import { ErrorWrapperSync } from "utils/Error";
 import { log_error } from "utils/Log";
 
 export enum OpenMode {
@@ -21,12 +21,12 @@ export class FuzzySuggester extends FuzzySuggestModal<TFile> {
     }
 
     getItems(): TFile[] {
-        if (!this.plugin.settings.templates_folder) {
+        if (!this.plugin.settings.templatesFolder) {
             return app.vault.getMarkdownFiles();
         }
-        const files = errorWrapperSync(
-            () => get_tfiles_from_folder(this.plugin.settings.templates_folder),
-            `Couldn't retrieve template files from templates folder ${this.plugin.settings.templates_folder}`
+        const files = ErrorWrapperSync(
+            () => get_tfiles_from_folder(this.plugin.settings.templatesFolder),
+            `Couldn't retrieve template files from templates folder ${this.plugin.settings.templatesFolder}`
         );
         if (!files) {
             return [];
@@ -36,9 +36,9 @@ export class FuzzySuggester extends FuzzySuggestModal<TFile> {
 
     getItemText(item: TFile): string {
         let relativePath = item.path;
-        if (item.path.startsWith(this.plugin.settings.templates_folder)) {
+        if (item.path.startsWith(this.plugin.settings.templatesFolder)) {
             relativePath = item.path.slice(
-                this.plugin.settings.templates_folder.length + 1
+                this.plugin.settings.templatesFolder.length + 1
             );
         }
         return relativePath.split(".").slice(0, -1).join(".");
@@ -50,7 +50,7 @@ export class FuzzySuggester extends FuzzySuggestModal<TFile> {
                 this.plugin.templater.append_template_to_active_file(item);
                 break;
             case OpenMode.CreateNoteTemplate:
-                this.plugin.templater.create_new_note_from_template(
+                this.plugin.templater.createNewNoteFromTemplate(
                     item,
                     this.creation_folder
                 );

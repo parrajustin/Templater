@@ -1,43 +1,40 @@
-import {
-    ButtonComponent,
-    Modal,
-    Platform,
-    TextAreaComponent,
-    TextComponent,
-} from "obsidian";
-import { TemplaterError } from "utils/Error";
+import type { App } from "obsidian";
+import { ButtonComponent, Modal, Platform, TextAreaComponent, TextComponent } from "obsidian";
+import type { StatusError } from "../../../../lib/status_error";
+import { AbortedError } from "../../../../lib/status_error";
 
 export class PromptModal extends Modal {
-    private resolve: (value: string) => void;
-    private reject: (reason?: TemplaterError) => void;
-    private submitted = false;
-    private value: string;
+    private _resolve: (value: string) => void;
+    private _reject: (reason?: StatusError) => void;
+    private _submitted = false;
+    private _value: string;
 
     constructor(
-        private prompt_text: string,
-        private default_value: string,
-        private multi_line: boolean
+        app: App,
+        private _promptText: string,
+        private _defaultValue: string,
+        private _multiLine: boolean
     ) {
         super(app);
     }
 
-    onOpen(): void {
-        this.titleEl.setText(this.prompt_text);
+    public onOpen(): void {
+        this.titleEl.setText(this._promptText);
         this.createForm();
     }
 
-    onClose(): void {
+    public onClose(): void {
         this.contentEl.empty();
-        if (!this.submitted) {
-            this.reject(new TemplaterError("Cancelled prompt"));
+        if (!this._submitted) {
+            this._reject(AbortedError("Cancelled prompt"));
         }
     }
 
-    createForm(): void {
+    public createForm(): void {
         const div = this.contentEl.createDiv();
         div.addClass("templater-prompt-div");
         let textInput;
-        if (this.multi_line) {
+        if (this._multiLine) {
             textInput = new TextAreaComponent(div);
 
             // Add submit button since enter needed for multiline input on mobile
@@ -52,21 +49,30 @@ export class PromptModal extends Modal {
             textInput = new TextComponent(div);
         }
 
-        this.value = this.default_value ?? "";
+        this._value = this._defaultValue;
         textInput.inputEl.addClass("templater-prompt-input");
         textInput.setPlaceholder("Type text here");
-        textInput.setValue(this.value);
-        textInput.onChange((value) => (this.value = value));
-        textInput.inputEl.addEventListener("keydown", (evt: KeyboardEvent) =>
-            this.enterCallback(evt)
-        );
+        textInput.setValue(this._value);
+        textInput.onChange((value) => (this._value = value));
+        textInput.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
+            this.enterCallback(evt);
+        });
+    }
+
+    public openAndGetValue(
+        resolve: (value: string) => void,
+        reject: (reason?: StatusError) => void
+    ) {
+        this._resolve = resolve;
+        this._reject = reject;
+        this.open();
     }
 
     private enterCallback(evt: KeyboardEvent) {
         // Fix for Korean inputs https://github.com/SilentVoid13/Templater/issues/1284
         if (evt.isComposing || evt.keyCode === 229) return;
 
-        if (this.multi_line) {
+        if (this._multiLine) {
             if (Platform.isDesktop && evt.key === "Enter" && !evt.shiftKey) {
                 this.resolveAndClose(evt);
             }
@@ -78,18 +84,9 @@ export class PromptModal extends Modal {
     }
 
     private resolveAndClose(evt: Event | KeyboardEvent) {
-        this.submitted = true;
+        this._submitted = true;
         evt.preventDefault();
-        this.resolve(this.value);
+        this._resolve(this._value);
         this.close();
-    }
-
-    async openAndGetValue(
-        resolve: (value: string) => void,
-        reject: (reason?: TemplaterError) => void
-    ): Promise<void> {
-        this.resolve = resolve;
-        this.reject = reject;
-        this.open();
     }
 }

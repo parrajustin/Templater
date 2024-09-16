@@ -20,10 +20,7 @@ declare module "obsidian" {
     }
 
     interface Workspace {
-        on(
-            name: "templater:all-templates-executed",
-            callback: () => unknown
-        ): EventRef;
+        on(name: "templater:all-templates-executed", callback: () => unknown): EventRef;
     }
 
     interface EventRef {
