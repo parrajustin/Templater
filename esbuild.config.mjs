@@ -11,39 +11,6 @@ if you want to view the source, please visit the github repository of this plugi
 */
 `;
 
-const wasmPlugin = (config) => {
-    return {
-        name: "wasm",
-        setup(build) {
-            build.onResolve({ filter: /\.wasm$/ }, (args) => {
-                if (args.resolveDir === "") {
-                    return;
-                }
-                return {
-                    path: path.isAbsolute(args.path)
-                        ? args.path
-                        : path.join(args.resolveDir, args.path),
-                    namespace: `wasm-${config.mode}`,
-                };
-            });
-            build.onLoad(
-                { filter: /.*/, namespace: "wasm-deferred" },
-                async (args) => ({
-                    contents: await readFile(args.path),
-                    loader: "file",
-                })
-            );
-            build.onLoad(
-                { filter: /.*/, namespace: "wasm-embed" },
-                async (args) => ({
-                    contents: await readFile(args.path),
-                    loader: "binary",
-                })
-            );
-        },
-    };
-};
-
 const prod = process.argv[2] === "production";
 const test_build = process.argv[2] === "test" || process.argv[3] === "test";
 
@@ -96,7 +63,6 @@ const context = await esbuild
         sourcemap: prod ? false : "inline",
         treeShaking: true,
         minify: prod,
-        plugins: [wasmPlugin({ mode: "embed" })],
         outdir: "dist",
         metafile: prod,
     });
