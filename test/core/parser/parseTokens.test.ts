@@ -1,11 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
-import {
-    CommandType,
-    ParserToken,
-    ParseTokens,
-    Whitespace
-} from "../../../src/core/parser/parseTokens";
-import { ParserConfig } from "../../../src/core/parser/parser";
+import type { ParserToken } from "../../../src/core/parser/parseTokens";
+import { CommandType, ParseTokens, Whitespace } from "../../../src/core/parser/parseTokens";
+import type { ParserConfig } from "../../../src/core/parser/parser";
 import { None, Some } from "../../../src/lib/option";
 
 function GetParserConfig(): ParserConfig {
@@ -22,7 +18,7 @@ function GetParserConfig(): ParserConfig {
 
 describe("ParseTokens", () => {
     test("Parses example string", () => {
-        let content = `
+        const content = `
 test<%_ test %>test
 <%- test _%>
 test
@@ -33,50 +29,61 @@ test`;
         expect(tokens.ok).toBeTruthy();
         expect(tokens.unsafeUnwrap()).toStrictEqual([
             {
+                type: "text",
                 text: "\ntest"
             },
             {
+                type: "command",
                 command: {
-                    type: CommandType.Interpolate,
+                    type: CommandType.INTERPOLATE,
                     content: " test ",
-                    openingWhitespace: Some(Whitespace.Multiple),
+                    openingWhitespace: Some(Whitespace.MULTIPLE),
                     closingWhitespace: None
                 }
             },
             {
+                type: "text",
                 text: "test\n"
             },
             {
+                type: "command",
                 command: {
-                    type: CommandType.Interpolate,
+                    type: CommandType.INTERPOLATE,
                     content: " test ",
-                    openingWhitespace: Some(Whitespace.Single),
-                    closingWhitespace: Some(Whitespace.Multiple)
+                    openingWhitespace: Some(Whitespace.SINGLE),
+                    closingWhitespace: Some(Whitespace.MULTIPLE)
                 }
             },
             {
+                type: "text",
                 text: "\ntest\n"
             },
             {
+                type: "command",
                 command: {
-                    type: CommandType.Execution,
+                    type: CommandType.EXECUTION,
                     content: " test ",
-                    openingWhitespace: Some(Whitespace.Multiple),
-                    closingWhitespace: Some(Whitespace.Single)
+                    openingWhitespace: Some(Whitespace.MULTIPLE),
+                    closingWhitespace: Some(Whitespace.SINGLE)
                 }
             },
             {
+                type: "text",
                 text: " test "
             },
             {
+                type: "command",
                 command: {
-                    type: CommandType.Interpolate,
+                    type: CommandType.INTERPOLATE,
                     content: " test ",
                     openingWhitespace: None,
                     closingWhitespace: None
                 }
             },
-            { text: "\ntest" }
+            {
+                type: "text",
+                text: "\ntest"
+            }
         ] as ParserToken[]);
     });
 });

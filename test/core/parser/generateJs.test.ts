@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import { ParseTokens } from "../../../src/core/parser/parseTokens";
 import { GenerateJs } from "../../../src/core/parser/generateJs";
-import { ParserConfig } from "../../../src/core/parser/parser";
+import type { ParserConfig } from "../../../src/core/parser/parser";
 
 function GetParserConfig(): ParserConfig {
     return {
@@ -17,7 +17,7 @@ function GetParserConfig(): ParserConfig {
 
 describe("GenerateJs", () => {
     test("Generate Correct js", async () => {
-        let content = `<%- test -%>\ntest\n\n<%_* test %>'test'<% test %>`;
+        const content = `<%- test -%>\ntest\n\n<%_* test %>'test'<% test %>`;
 
         const tokens = ParseTokens(GetParserConfig(), content);
         expect(tokens.ok).toBeTruthy();
@@ -38,7 +38,7 @@ return tR;
     });
 
     test("Validate whitespace control", async () => {
-        let content = `\ntest\n\n<%_ test -%>\r\n\ntest\n\r<%-* test _%>\rtest\r\n<%-* test -%> test <% test %>\ntest`;
+        const content = `\ntest\n\n<%_ test -%>\r\n\ntest\n\r<%-* test _%>\rtest\r\n<%-* test -%> test <% test %>\ntest`;
 
         const tokens = ParseTokens(GetParserConfig(), content);
         expect(tokens.ok).toBeTruthy();

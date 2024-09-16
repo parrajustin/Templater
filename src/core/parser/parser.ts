@@ -1,5 +1,7 @@
-import { Err, Ok, Result } from "../../lib/result";
-import { InternalError, StatusError } from "../../lib/status_error";
+import type { Result } from "../../lib/result";
+import { Err, Ok } from "../../lib/result";
+import { StatusError, UnknownError } from "../../lib/status_error";
+import { InternalError } from "../../lib/status_error";
 import { WrapPromise } from "../../lib/wrap_promise";
 import { GenerateJs } from "./generateJs";
 import { ParseTokens } from "./parseTokens";
@@ -33,6 +35,7 @@ const CORRECT_CONTEXT = Symbol("__Parser__Context__");
  * @param config parser config
  * @param content data to parse
  * @returns the result of parsing the data and executing the js.
+ * @throws StatusError from failed executions.
  */
 async function ExecuteParser(
     config: ParserConfig,
@@ -42,13 +45,13 @@ async function ExecuteParser(
         return Err(InternalError("Parser executed outside correct context."));
     }
     const contextNames: string[] = [];
-    const contextValues: string[] = [];
+    const contextValues: unknown[] = [];
     for (const key of Object.keys(this as Record<string, unknown>)) {
         if (key === "context_identifier") {
             continue;
         }
         contextNames.push(key);
-        contextValues.push(`this["${key}"]`);
+        contextValues.push(this[key]);
     }
 
     const tokens = ParseTokens(config, content);
@@ -56,15 +59,14 @@ async function ExecuteParser(
         return tokens;
     }
     const js = GenerateJs(config, tokens.safeUnwrap());
-    const executionResult: string = await eval(
-        `(async (globalThis, ${contextNames.join(",")}) => {${js}})(this,${contextValues.join(",")})`
-    );
-    return Ok(executionResult);
+    const executionFunc = new Function(...contextNames, `return (async () => {${js}})();`);
+    const executionResult = executionFunc(...contextValues);
+    return Ok(await executionResult);
 }
 
 /** Template parser. */
 export class Parser {
-    private config: ParserConfig = {
+    private _config: ParserConfig = {
         openingTag: "<%",
         closingTag: "%>",
         interpolate: "\0",
@@ -75,34 +77,41 @@ export class Parser {
     };
 
     /** Can be used to replace the default parser config. */
-    async init(config?: ParserConfig) {
+    public async init(config?: ParserConfig) {
         if (config !== undefined) {
-            this.config = config;
+            this._config = config;
         }
     }
 
     /**
-     * Parses the input `content` and outputs the finished text data.
+     * Parses the input `content` and outputs the finished text data. Catches any template errors.
      * @param content data to parse.
      * @param context the scope information
      * @returns the parsed and resolved template.
      */
-    async parseCommands(content: string, context: Record<string, unknown>): Promise<string> {
+    public async parseCommands(
+        content: string,
+        context: Record<string, unknown>
+    ): Promise<Result<string, StatusError>> {
         context["context_identifier"] = CORRECT_CONTEXT;
         const boundFunc: typeof ExecuteParser = ExecuteParser.bind(context);
-        return await (WrapPromise<Result<string, StatusError>, StatusError | unknown>(
-            boundFunc(this.config, content)
+        return WrapPromise<Result<string, StatusError>, StatusError | unknown>(
+            boundFunc(this._config, content)
         ).then((crashResult) => {
             if (crashResult.err) {
-                return `${crashResult.val}`;
+                if (crashResult.val instanceof StatusError) {
+                    return Err(crashResult.val);
+                }
+                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                return Err(UnknownError(`${crashResult.val}`));
             }
 
             const crashResultVal = crashResult.safeUnwrap();
             if (crashResultVal.ok) {
-                return crashResultVal.val;
+                return crashResultVal;
             }
 
-            return crashResultVal.val.toString();
-        }));
+            return crashResultVal;
+        });
     }
 }

@@ -1,6 +1,8 @@
-import { Err, Ok, Result } from "../../lib/result";
-import { InvalidArgumentError, StatusError } from "../../lib/status_error";
-import { ParserConfig, ParsingData } from "./parser";
+import type { Result } from "../../lib/result";
+import { Err, Ok } from "../../lib/result";
+import type { StatusError } from "../../lib/status_error";
+import { InvalidArgumentError } from "../../lib/status_error";
+import type { ParserConfig, ParsingData } from "./parser";
 import { SplitOnce } from "./util";
 
 /**
@@ -14,7 +16,7 @@ export function ParseClosingTag(
     config: ParserConfig,
     content: string,
     parsingData: ParsingData
-): Result<[string, string], StatusError> {
+): Result<[textBeforeClosingTag: string, textAfterClosingTag: string], StatusError> {
     const split = SplitOnce(content, config.closingTag);
     if (!split.some) {
         return Err(InvalidArgumentError("Missing closing tag."));
