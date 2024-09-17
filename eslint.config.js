@@ -24,7 +24,7 @@ const config = tseslint.config({
         "one-var-declaration-per-line": ["warn", "always"],
         "operator-assignment": ["warn", "always"],
         "operator-linebreak": ["warn", "off"],
-        "no-else-return": "warn",
+        "operator-linebreak": "off",
         camelcase: ["error", { properties: "always" }],
         "@typescript-eslint/no-unused-vars": [
             "error",
@@ -71,8 +71,7 @@ const config = tseslint.config({
             },
             {
                 "selector": "typeParameter",
-                "format": ["PascalCase"],
-                "prefix": ["T", "K"]
+                "format": ["PascalCase"]
             },
             {
                 "selector": "import",
