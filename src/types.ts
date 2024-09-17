@@ -3,6 +3,22 @@ declare module "obsidian" {
         dom: {
             appContainerEl: HTMLElement;
         };
+        commands: {
+            commands: {
+                [key: string]: Command;
+            };
+            executeCommandById(id: string): void;
+            removeCommand(id: string): void;
+        };
+        setting: {
+            openTabById: (id: string) => void;
+            activeTab: {
+                searchInputEl: {
+                    value: string;
+                };
+                updateHotkeyVisibility: () => void;
+            };
+        };
     }
 
     interface Vault {

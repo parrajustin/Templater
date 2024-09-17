@@ -9,9 +9,9 @@ export class InternalModuleWeb extends InternalModule {
     name: ModuleName = "web";
 
     public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
-        this.staticFunctions.set("daily_quote", this.generateDailyQuote());
+        this.staticFunctions.set("dailyQuote", this.generateDailyQuote());
         this.staticFunctions.set("request", this.generateRequest());
-        this.staticFunctions.set("random_picture", this.generateRandomPicture());
+        this.staticFunctions.set("randomPicture", this.generateRandomPicture());
         return Ok();
     }
 
@@ -61,7 +61,7 @@ export class InternalModuleWeb extends InternalModule {
         return async (size: string, query?: string, includeSize = false) => {
             try {
                 const response = await this.getRequest(
-                    `https://templater-unsplash-2.fly.dev/${query ? "?q=" + query : ""}`
+                    `https://templater-unsplash-2.fly.dev/${query !== undefined ? "?q=" + query : ""}`
                 ).then((res) => res.json());
                 let url = response.full;
                 if (size && !includeSize) {

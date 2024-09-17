@@ -1,79 +1,87 @@
-import { FuzzySuggestModal, TFile, TFolder } from "obsidian";
-import { get_tfiles_from_folder } from "utils/Utils";
-import TemplaterPlugin from "main";
-import { ErrorWrapperSync } from "utils/Error";
-import { log_error } from "utils/Log";
+import type { TFile, TFolder } from "obsidian";
+import { FuzzySuggestModal } from "obsidian";
+import { GetTfilesFromFolder } from "utils/utils";
+import type TemplaterPlugin from "main";
+import { LogError } from "utils/log";
 
 export enum OpenMode {
-    InsertTemplate,
-    CreateNoteTemplate,
+    INSERT_TEMPLATE,
+    CREATE_NOTE_TEMPLATE
 }
 
 export class FuzzySuggester extends FuzzySuggestModal<TFile> {
-    private plugin: TemplaterPlugin;
-    private open_mode: OpenMode;
-    private creation_folder: TFolder | undefined;
+    private _plugin: TemplaterPlugin;
+    private _openMode: OpenMode;
+    private _creationFolder: TFolder | undefined;
 
     constructor(plugin: TemplaterPlugin) {
-        super(app);
-        this.plugin = plugin;
+        super(plugin.app);
+        this._plugin = plugin;
         this.setPlaceholder("Type name of a template...");
     }
 
-    getItems(): TFile[] {
-        if (!this.plugin.settings.templatesFolder) {
-            return app.vault.getMarkdownFiles();
+    public getItems(): TFile[] {
+        if (!this._plugin.settings.templatesFolder) {
+            return this._plugin.app.vault.getMarkdownFiles();
         }
-        const files = ErrorWrapperSync(
-            () => get_tfiles_from_folder(this.plugin.settings.templatesFolder),
-            `Couldn't retrieve template files from templates folder ${this.plugin.settings.templatesFolder}`
+        const templateFiles = GetTfilesFromFolder(
+            this._plugin.app,
+            this._plugin.settings.templatesFolder
         );
-        if (!files) {
+        if (templateFiles.err) {
+            LogError(templateFiles.val);
             return [];
         }
+        const files = templateFiles.safeUnwrap();
         return files;
     }
 
-    getItemText(item: TFile): string {
+    public getItemText(item: TFile): string {
         let relativePath = item.path;
-        if (item.path.startsWith(this.plugin.settings.templatesFolder)) {
-            relativePath = item.path.slice(
-                this.plugin.settings.templatesFolder.length + 1
-            );
+        if (item.path.startsWith(this._plugin.settings.templatesFolder)) {
+            relativePath = item.path.slice(this._plugin.settings.templatesFolder.length + 1);
         }
         return relativePath.split(".").slice(0, -1).join(".");
     }
 
-    onChooseItem(item: TFile): void {
-        switch (this.open_mode) {
-            case OpenMode.InsertTemplate:
-                this.plugin.templater.appendTemplateToActiveFile(item);
+    public async onChooseItem(item: TFile): Promise<void> {
+        switch (this._openMode) {
+            case OpenMode.INSERT_TEMPLATE: {
+                const appendResult = await this._plugin.templater.appendTemplateToActiveFile(item);
+                if (appendResult.err) {
+                    LogError(appendResult.val);
+                }
                 break;
-            case OpenMode.CreateNoteTemplate:
-                this.plugin.templater.createNewNoteFromTemplate(
+            }
+            case OpenMode.CREATE_NOTE_TEMPLATE: {
+                const createResult = await this._plugin.templater.createNewNoteFromTemplate(
                     item,
-                    this.creation_folder
+                    this._creationFolder
                 );
+                if (createResult.err) {
+                    LogError(createResult.val);
+                }
                 break;
+            }
         }
     }
 
-    start(): void {
+    public start(): void {
         try {
             this.open();
         } catch (e) {
-            log_error(e);
+            LogError(e);
         }
     }
 
-    insert_template(): void {
-        this.open_mode = OpenMode.InsertTemplate;
+    public insertTemplate(): void {
+        this._openMode = OpenMode.INSERT_TEMPLATE;
         this.start();
     }
 
-    create_new_note_from_template(folder?: TFolder): void {
-        this.creation_folder = folder;
-        this.open_mode = OpenMode.CreateNoteTemplate;
+    public createNewNoteFromTemplate(folder?: TFolder): void {
+        this._creationFolder = folder;
+        this._openMode = OpenMode.CREATE_NOTE_TEMPLATE;
         this.start();
     }
 }

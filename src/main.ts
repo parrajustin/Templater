@@ -1,12 +1,12 @@
 import { addIcon, Plugin } from "obsidian";
-import type { Settings } from "settings/Settings";
-import { DEFAULT_SETTINGS, TemplaterSettingTab } from "settings/Settings";
+import type { Settings } from "settings/settings";
+import { DEFAULT_SETTINGS, TemplaterSettingTab } from "settings/settings";
 import { FuzzySuggester } from "handlers/FuzzySuggester";
 import { ICON_DATA } from "utils/Constants";
 import { Templater } from "core/templater";
 import EventHandler from "handlers/EventHandler";
 import { CommandHandler } from "handlers/CommandHandler";
-import { Editor } from "editor/Editor";
+import { Editor } from "editor/editor";
 
 export default class TemplaterPlugin extends Plugin {
     public settings: Settings;
@@ -22,20 +22,20 @@ export default class TemplaterPlugin extends Plugin {
         this.templater = new Templater(this.app, this);
         await this.templater.setup();
 
-        this.editorHandler = new Editor(this);
+        this.editorHandler = new Editor(this.app, this);
         await this.editorHandler.setup();
 
         this.fuzzySuggester = new FuzzySuggester(this);
 
         this.eventHandler = new EventHandler(this, this.templater, this.settings);
-        this.eventHandler.setup();
+        await this.eventHandler.setup();
 
         this.commandHandler = new CommandHandler(this);
         this.commandHandler.setup();
 
         addIcon("templater-icon", ICON_DATA);
         this.addRibbonIcon("templater-icon", "Templater", async () => {
-            this.fuzzySuggester.insert_template();
+            this.fuzzySuggester.insertTemplate();
         }).setAttribute("id", "rb-templater-icon");
 
         this.addSettingTab(new TemplaterSettingTab(this.app, this));

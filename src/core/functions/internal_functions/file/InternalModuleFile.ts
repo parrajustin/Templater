@@ -30,15 +30,15 @@ export class InternalModuleFile extends InternalModule {
     public async teardown(): Promise<void> {}
 
     public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
-        this.staticFunctions.set("creation_date", this.generateCreationDate());
-        this.staticFunctions.set("create_new", this.generateCreateNew());
+        this.staticFunctions.set("creationDate", this.generateCreationDate());
+        this.staticFunctions.set("createNew", this.generateCreateNew());
         this.staticFunctions.set("cursor", this.generateCursor());
-        this.staticFunctions.set("cursor_append", this.generateCursorAppend());
+        this.staticFunctions.set("cursorAppend", this.generateCursorAppend());
         this.staticFunctions.set("exists", this.generateExists());
-        this.staticFunctions.set("find_tfile", this.generateFindTfile());
+        this.staticFunctions.set("findTfile", this.generateFindTfile());
         this.staticFunctions.set("folder", this.generateFolder());
         this.staticFunctions.set("include", this.generateInclude());
-        this.staticFunctions.set("last_modified_date", this.generateLastModifiedDate());
+        this.staticFunctions.set("lastModifiedDate", this.generateLastModifiedDate());
         this.staticFunctions.set("move", this.generateMove());
         this.staticFunctions.set("path", this.generatePath());
         this.staticFunctions.set("rename", this.generateRename());
@@ -81,10 +81,13 @@ export class InternalModuleFile extends InternalModule {
                 filename,
                 openNew
             );
+            if (!newFile.ok) {
+                throw newFile.err;
+            }
 
             this._createNewDepth -= 1;
 
-            return newFile;
+            return newFile.safeUnwrap();
         };
     }
 

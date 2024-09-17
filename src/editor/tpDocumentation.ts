@@ -1,9 +1,9 @@
-import { Settings } from "settings/Settings";
-import { ErrorWrapperSync } from "utils/Error";
-import { get_tfiles_from_folder } from "utils/Utils";
+import type { Settings } from "settings/settings";
+import { GetTfilesFromFolder } from "utils/utils";
 import { DOCUMENTATION } from "./documentation";
+import type { App } from "obsidian";
 
-const module_names = [
+const moduleNames = [
     "config",
     "date",
     "file",
@@ -12,13 +12,13 @@ const module_names = [
     "obsidian",
     "system",
     "user",
-    "web",
+    "web"
 ] as const;
-export type ModuleName = (typeof module_names)[number];
-const module_names_checker: Set<string> = new Set(module_names);
+export type ModuleName = (typeof moduleNames)[number];
+const moduleNamesChecker: Set<string> = new Set(moduleNames);
 
-export function is_module_name(x: unknown): x is ModuleName {
-    return typeof x === "string" && module_names_checker.has(x);
+export function IsModuleName(x: unknown): x is ModuleName {
+    return typeof x === "string" && moduleNamesChecker.has(x);
 }
 
 export type TpDocumentation = {
@@ -50,13 +50,9 @@ export type TpArgumentDocumentation = {
     description: string;
 };
 
-export type TpSuggestDocumentation =
-    | TpModuleDocumentation
-    | TpFunctionDocumentation;
+export type TpSuggestDocumentation = TpModuleDocumentation | TpFunctionDocumentation;
 
-export function is_function_documentation(
-    x: TpSuggestDocumentation
-): x is TpFunctionDocumentation {
+export function IsFunctionDocumentation(x: TpSuggestDocumentation): x is TpFunctionDocumentation {
     if ((x as TpFunctionDocumentation).definition) {
         return true;
     }
@@ -66,67 +62,69 @@ export function is_function_documentation(
 export class Documentation {
     public documentation: TpDocumentation = DOCUMENTATION as unknown as TpDocumentation;
 
-    constructor(private settings: Settings) {}
+    constructor(
+        private _app: App,
+        private _settings: Settings
+    ) {}
 
-    get_all_modules_documentation(): TpModuleDocumentation[] {
+    public getAllModulesDocumentation(): TpModuleDocumentation[] {
         return Object.values(this.documentation.tp);
     }
 
-    get_all_functions_documentation(
-        module_name: ModuleName
+    public getAllFunctionsDocumentation(
+        moduleName: ModuleName
     ): TpFunctionDocumentation[] | undefined {
-        if (module_name === "user") {
-            if (!this.settings || !this.settings.user_scripts_folder) return;
-            const files = ErrorWrapperSync(
-                () => get_tfiles_from_folder(this.settings.user_scripts_folder),
-                `User Scripts folder doesn't exist`
+        if (moduleName === "user") {
+            const userScriptFiles = GetTfilesFromFolder(
+                this._app,
+                this._settings.userScriptsFolder
             );
-            if (!files || files.length === 0) return;
-            return files.reduce<TpFunctionDocumentation[]>(
-                (processedFiles, file) => {
-                    if (file.extension !== "js") return processedFiles;
-                    return [
-                        ...processedFiles,
-                        {
-                            name: file.basename,
-                            definition: "",
-                            description: "",
-                            example: "",
-                        },
-                    ];
-                },
-                []
-            );
+            const files = userScriptFiles.ok ? userScriptFiles.safeUnwrap() : [];
+            if (files.length === 0) {
+                return;
+            }
+            return files.reduce<TpFunctionDocumentation[]>((processedFiles, file) => {
+                if (file.extension !== "js") return processedFiles;
+                return [
+                    ...processedFiles,
+                    {
+                        name: file.basename,
+                        definition: "",
+                        description: "",
+                        example: ""
+                    }
+                ];
+            }, []);
         }
-        if (!this.documentation.tp[module_name].functions) {
-            return;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (this.documentation.tp[moduleName] === undefined) {
+            return undefined;
         }
-        return Object.values(this.documentation.tp[module_name].functions);
+        return Object.values(this.documentation.tp[moduleName].functions);
     }
 
-    get_module_documentation(module_name: ModuleName): TpModuleDocumentation {
-        return this.documentation.tp[module_name];
+    public getModuleDocumentation(moduleName: ModuleName): TpModuleDocumentation {
+        return this.documentation.tp[moduleName];
     }
 
-    get_function_documentation(
-        module_name: ModuleName,
-        function_name: string
+    public getFunctionDocumentation(
+        moduleName: ModuleName,
+        functionName: string
     ): TpFunctionDocumentation | null {
-        return this.documentation.tp[module_name].functions[function_name] as TpFunctionDocumentation | null;
+        return this.documentation.tp[moduleName].functions[
+            functionName
+        ] as TpFunctionDocumentation | null;
     }
 
-    get_argument_documentation(
-        module_name: ModuleName,
-        function_name: string,
-        argument_name: string
+    public getArgumentDocumentation(
+        moduleName: ModuleName,
+        functionName: string,
+        argumentName: string
     ): TpArgumentDocumentation | null {
-        const function_doc = this.get_function_documentation(
-            module_name,
-            function_name
-        );
-        if (!function_doc || !function_doc.args) {
+        const functionDoc = this.getFunctionDocumentation(moduleName, functionName);
+        if (!functionDoc || !functionDoc.args) {
             return null;
         }
-        return function_doc.args[argument_name] as TpArgumentDocumentation | null;
+        return functionDoc.args[argumentName] as TpArgumentDocumentation | null;
     }
 }

@@ -84,7 +84,7 @@ export class Templater {
             return Err(InternalError("File "));
         }
 
-        if (file.stat.size == 0 && templater._plugin.settings.enable_folder_templates) {
+        if (file.stat.size == 0 && templater._plugin.settings.enableFolderTemplates) {
             const folderTemplateMatch = templater.getNewFileTemplateForFolder(file.parent);
             if (folderTemplateMatch === undefined || folderTemplateMatch === "") {
                 return Err(
@@ -208,7 +208,7 @@ export class Templater {
                 state: { mode: "source" }
             });
 
-            await this._plugin.editorHandler.jump_to_next_cursor_location(createdNote, true);
+            await this._plugin.editorHandler.jumpToNextCursorLocation(createdNote, true);
 
             activeLeaf.setEphemeralState({
                 rename: "all"
@@ -254,7 +254,7 @@ export class Templater {
             newSelections: doc.listSelections()
         });
 
-        await this._plugin.editorHandler.jump_to_next_cursor_location(activeEditor.file, true);
+        await this._plugin.editorHandler.jumpToNextCursorLocation(activeEditor.file, true);
         await this.endTemplaterTask(path);
         return Ok();
     }
@@ -288,7 +288,7 @@ export class Templater {
             file,
             content: outputContent
         });
-        await this._plugin.editorHandler.jump_to_next_cursor_location(file, true);
+        await this._plugin.editorHandler.jumpToNextCursorLocation(file, true);
         await this.endTemplaterTask(path);
         return Ok();
     }
@@ -356,7 +356,7 @@ export class Templater {
     public getNewFileTemplateForFolder(folder: TFolder | null): string | undefined {
         const f: TFolder | null = folder;
         while (f !== null) {
-            const match = this._plugin.settings.folder_templates.find((e) => e.folder == f.path);
+            const match = this._plugin.settings.folderTemplates.find((e) => e.folder == f.path);
 
             if (match && match.template) {
                 return match.template;
@@ -370,7 +370,7 @@ export class Templater {
     /** Execute the startup templates that don't render any template. */
     public async executeStartupScripts(): Promise<void[]> {
         const startupPromises: Promise<void>[] = [];
-        for (const template of this._plugin.settings.startup_templates) {
+        for (const template of this._plugin.settings.startupTemplates) {
             if (!template) {
                 continue;
             }
@@ -433,7 +433,7 @@ export class Templater {
             file,
             content: outputContent
         });
-        await this._plugin.editorHandler.jump_to_next_cursor_location(file, true);
+        await this._plugin.editorHandler.jumpToNextCursorLocation(file, true);
         await this.endTemplaterTask(path);
         return Ok();
     }

@@ -11,10 +11,7 @@ export class InternalModuleHooks extends InternalModule {
     private _eventRefs: EventRef[] = [];
 
     public override async createStaticTemplates(): Promise<StatusResult<StatusError>> {
-        this.staticFunctions.set(
-            "on_all_templates_executed",
-            this.generateOnAllTemplatesExecuted()
-        );
+        this.staticFunctions.set("onAllTemplatesExecuted", this.generateOnAllTemplatesExecuted());
         return Ok();
     }
 

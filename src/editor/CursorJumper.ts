@@ -1,57 +1,48 @@
-import {
-    EditorPosition,
-    EditorRangeOrCaret,
-    EditorTransaction,
-    MarkdownView,
-} from "obsidian";
-import { escape_RegExp } from "utils/Utils";
+import type { App, EditorPosition, EditorRangeOrCaret, EditorTransaction } from "obsidian";
+import { MarkdownView } from "obsidian";
+import { EscapeRegExp } from "utils/utils";
 
 export class CursorJumper {
-    constructor() {}
+    constructor(private _app: App) {}
 
-    async jump_to_next_cursor_location(): Promise<void> {
-        const active_editor = app.workspace.activeEditor;
-        if (!active_editor || !active_editor.editor) {
+    public async jumpToNextCursorLocation(): Promise<void> {
+        const activeEditor = this._app.workspace.activeEditor;
+        if (!activeEditor || !activeEditor.editor) {
             return;
         }
-        const content = active_editor.editor.getValue();
+        const content = activeEditor.editor.getValue();
 
-        const { new_content, positions } =
-            this.replace_and_get_cursor_positions(content);
+        const { newContent, positions } = this.replaceAndGetCursorPositions(content);
         if (positions) {
-            const fold_info =
-                active_editor instanceof MarkdownView
-                    ? active_editor.currentMode.getFoldInfo()
+            const foldInfo =
+                activeEditor instanceof MarkdownView
+                    ? activeEditor.currentMode.getFoldInfo()
                     : null;
-            active_editor.editor.setValue(new_content as string);
+            activeEditor.editor.setValue(newContent as string);
             // only expand folds that have a cursor placed within it's bounds
-            if (fold_info && Array.isArray(fold_info.folds)) {
+            if (foldInfo && Array.isArray(foldInfo.folds)) {
                 positions.forEach((position) => {
-                    fold_info.folds = fold_info.folds.filter(
-                        (fold) =>
-                            fold.from > position.line || fold.to < position.line
+                    foldInfo.folds = foldInfo.folds.filter(
+                        (fold) => fold.from > position.line || fold.to < position.line
                     );
                 });
-                if (active_editor instanceof MarkdownView) {
-                    active_editor.currentMode.applyFoldInfo(fold_info);
+                if (activeEditor instanceof MarkdownView) {
+                    activeEditor.currentMode.applyFoldInfo(foldInfo);
                 }
             }
-            this.set_cursor_location(positions);
+            this.setCursorLocation(positions);
         }
 
         // enter insert mode for vim users
-        if (app.vault.getConfig("vimMode")) {
-            // @ts-ignore
-            const cm = active_editor.editor.cm.cm;
-            // @ts-ignore
+        if (this._app.vault.getConfig("vimMode")) {
+            // @ts-expect-error Doing some weird stuff with active editor.
+            const cm = activeEditor.editor.cm.cm;
+            // @ts-expect-error Doing some weird stuff with window.
             window.CodeMirrorAdapter.Vim.handleKey(cm, "i", "mapping");
         }
     }
 
-    get_editor_position_from_index(
-        content: string,
-        index: number
-    ): EditorPosition {
+    public getEditorPositionFromIndex(content: string, index: number): EditorPosition {
         const substr = content.slice(0, index);
 
         let l = 0;
@@ -65,69 +56,65 @@ export class CursorJumper {
         return { line: l, ch: ch };
     }
 
-    replace_and_get_cursor_positions(content: string): {
-        new_content?: string;
+    public replaceAndGetCursorPositions(content: string): {
+        newContent?: string;
         positions?: EditorPosition[];
     } {
-        let cursor_matches = [];
+        let cursorMatches = [];
         let match;
-        const cursor_regex = new RegExp(
-            "<%\\s*tp.file.cursor\\((?<order>[0-9]*)\\)\\s*%>",
-            "g"
-        );
+        const cursorRegex = new RegExp("<%\\s*tp.file.cursor\\((?<order>[0-9]*)\\)\\s*%>", "g");
 
-        while ((match = cursor_regex.exec(content)) != null) {
-            cursor_matches.push(match);
+        while ((match = cursorRegex.exec(content)) != null) {
+            cursorMatches.push(match);
         }
-        if (cursor_matches.length === 0) {
+        if (cursorMatches.length === 0) {
             return {};
         }
 
-        cursor_matches.sort((m1, m2) => {
+        cursorMatches.sort((m1, m2) => {
             return (
-                Number(m1.groups && m1.groups["order"]) -
-                Number(m2.groups && m2.groups["order"])
+                Number(m1.groups && m1.groups["order"]) - Number(m2.groups && m2.groups["order"])
             );
         });
-        const match_str = cursor_matches[0][0];
+        const matchStr = (cursorMatches[0] as RegExpExecArray)[0];
 
-        cursor_matches = cursor_matches.filter((m) => {
-            return m[0] === match_str;
+        cursorMatches = cursorMatches.filter((m) => {
+            return m[0] === matchStr;
         });
 
         const positions = [];
-        let index_offset = 0;
-        for (const match of cursor_matches) {
-            const index = match.index - index_offset;
-            positions.push(this.get_editor_position_from_index(content, index));
+        let indexOffset = 0;
+        for (const cursorMatch of cursorMatches) {
+            const index = cursorMatch.index - indexOffset;
+            positions.push(this.getEditorPositionFromIndex(content, index));
 
-            content = content.replace(new RegExp(escape_RegExp(match[0])), "");
-            index_offset += match[0].length;
+            content = content.replace(new RegExp(EscapeRegExp(cursorMatch[0])), "");
+            indexOffset += cursorMatch[0].length;
 
             // For tp.file.cursor(), we keep the default top to bottom
-            if (match[1] === "") {
+            if (cursorMatch[1] === "") {
                 break;
             }
         }
 
-        return { new_content: content, positions: positions };
+        return { newContent: content, positions: positions };
     }
 
-    set_cursor_location(positions: EditorPosition[]): void {
-        const active_editor = app.workspace.activeEditor;
-        if (!active_editor || !active_editor.editor) {
+    public setCursorLocation(positions: EditorPosition[]): void {
+        const activeEditor = this._app.workspace.activeEditor;
+        if (!activeEditor || !activeEditor.editor) {
             return;
         }
 
-        const editor = active_editor.editor;
+        const editor = activeEditor.editor;
 
-        const selections: Array<EditorRangeOrCaret> = [];
+        const selections: EditorRangeOrCaret[] = [];
         for (const pos of positions) {
             selections.push({ from: pos });
         }
 
         const transaction: EditorTransaction = {
-            selections: selections,
+            selections: selections
         };
         editor.transaction(transaction);
     }

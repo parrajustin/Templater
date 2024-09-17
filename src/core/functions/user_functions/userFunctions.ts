@@ -22,7 +22,7 @@ export class UserFunctions implements IGenerateObject {
         let userScriptFunctions = {};
 
         // user_scripts_folder needs to be explicitly set to '/' to query from root
-        if (this._plugin.settings.user_scripts_folder) {
+        if (this._plugin.settings.userScriptsFolder) {
             const generateObjectResult = await this._userScriptFunctions.generateObject();
             if (!generateObjectResult.ok) {
                 return generateObjectResult;

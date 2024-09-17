@@ -1,116 +1,114 @@
-import TemplaterPlugin from "main";
-import { resolve_tfile } from "utils/Utils";
-import { ErrorWrapperSync } from "utils/Error";
+import type TemplaterPlugin from "main";
+import { ResolveTfile } from "utils/utils";
+import { LogError } from "../utils/log";
 
 export class CommandHandler {
-    constructor(private plugin: TemplaterPlugin) {}
+    constructor(private _plugin: TemplaterPlugin) {}
 
-    setup(): void {
-        this.plugin.addCommand({
+    public setup(): void {
+        this._plugin.addCommand({
             id: "insert-templater",
             name: "Open insert template modal",
             icon: "templater-icon",
             hotkeys: [
                 {
                     modifiers: ["Alt"],
-                    key: "e",
-                },
+                    key: "e"
+                }
             ],
             callback: () => {
-                this.plugin.fuzzySuggester.insert_template();
-            },
+                this._plugin.fuzzySuggester.insertTemplate();
+            }
         });
 
-        this.plugin.addCommand({
+        this._plugin.addCommand({
             id: "replace-in-file-templater",
             name: "Replace templates in the active file",
             icon: "templater-icon",
             hotkeys: [
                 {
                     modifiers: ["Alt"],
-                    key: "r",
-                },
+                    key: "r"
+                }
             ],
-            callback: () => {
-                this.plugin.templater.overwriteActiveFileCommands();
-            },
+            callback: async () => {
+                const overwriteResult = await this._plugin.templater.overwriteActiveFileCommands();
+                if (!overwriteResult.ok) {
+                    LogError(overwriteResult.val);
+                }
+            }
         });
 
-        this.plugin.addCommand({
+        this._plugin.addCommand({
             id: "jump-to-next-cursor-location",
             name: "Jump to next cursor location",
             icon: "text-cursor",
             hotkeys: [
                 {
                     modifiers: ["Alt"],
-                    key: "Tab",
-                },
+                    key: "Tab"
+                }
             ],
-            callback: () => {
-                this.plugin.editorHandler.jump_to_next_cursor_location();
-            },
+            callback: async () => {
+                await this._plugin.editorHandler.jumpToNextCursorLocation();
+            }
         });
 
-        this.plugin.addCommand({
+        this._plugin.addCommand({
             id: "create-new-note-from-template",
             name: "Create new note from template",
             icon: "templater-icon",
             hotkeys: [
                 {
                     modifiers: ["Alt"],
-                    key: "n",
-                },
+                    key: "n"
+                }
             ],
             callback: () => {
-                this.plugin.fuzzySuggester.create_new_note_from_template();
-            },
+                this._plugin.fuzzySuggester.createNewNoteFromTemplate();
+            }
         });
 
-        this.register_templates_hotkeys();
+        this.registerTemplatesHotkeys();
     }
 
-    register_templates_hotkeys(): void {
-        this.plugin.settings.enabled_templates_hotkeys.forEach((template) => {
+    public registerTemplatesHotkeys(): void {
+        this._plugin.settings.enabledTemplatesHotkeys.forEach((template) => {
             if (template) {
-                this.add_template_hotkey(null, template);
+                this.addTemplateHotkey(null, template);
             }
         });
     }
 
-    add_template_hotkey(
-        old_template: string | null,
-        new_template: string
-    ): void {
-        this.remove_template_hotkey(old_template);
+    public addTemplateHotkey(oldTemplate: string | null, newTemplate: string): void {
+        this.removeTemplateHotkey(oldTemplate);
 
-        if (new_template) {
-            this.plugin.addCommand({
-                id: new_template,
-                name: `Insert ${new_template}`,
+        if (newTemplate) {
+            this._plugin.addCommand({
+                id: newTemplate,
+                name: `Insert ${newTemplate}`,
                 icon: "templater-icon",
-                callback: () => {
-                    const template = ErrorWrapperSync(
-                        () => resolve_tfile(new_template),
-                        `Couldn't find the template file associated with this hotkey`
-                    );
-                    if (!template) {
+                callback: async () => {
+                    const resolveResolt = ResolveTfile(this._plugin.app, newTemplate);
+                    if (resolveResolt.err) {
                         return;
                     }
-                    this.plugin.templater.appendTemplateToActiveFile(
-                        template
-                    );
-                },
+                    const appendTemplateResult =
+                        await this._plugin.templater.appendTemplateToActiveFile(
+                            resolveResolt.safeUnwrap()
+                        );
+                    if (!appendTemplateResult.ok) {
+                        LogError(appendTemplateResult.val);
+                    }
+                }
             });
         }
     }
 
-    remove_template_hotkey(template: string | null): void {
-        if (template) {
+    public removeTemplateHotkey(template: string | null): void {
+        if (template !== null) {
             // TODO: Find official way to do this
-            // @ts-ignore
-            app.commands.removeCommand(
-                `${this.plugin.manifest.id}:${template}`
-            );
+            this._plugin.app.commands.removeCommand(`${this._plugin.manifest.id}:${template}`);
         }
     }
 }
