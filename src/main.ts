@@ -1,6 +1,6 @@
 import { addIcon, Plugin } from "obsidian";
-
-import { DEFAULT_SETTINGS, Settings, TemplaterSettingTab } from "settings/Settings";
+import type { Settings } from "settings/Settings";
+import { DEFAULT_SETTINGS, TemplaterSettingTab } from "settings/Settings";
 import { FuzzySuggester } from "handlers/FuzzySuggester";
 import { ICON_DATA } from "utils/Constants";
 import { Templater } from "core/templater";
@@ -11,38 +11,38 @@ import { Editor } from "editor/Editor";
 export default class TemplaterPlugin extends Plugin {
     public settings: Settings;
     public templater: Templater;
-    public event_handler: EventHandler;
-    public command_handler: CommandHandler;
-    public fuzzy_suggester: FuzzySuggester;
-    public editor_handler: Editor;
+    public eventHandler: EventHandler;
+    public commandHandler: CommandHandler;
+    public fuzzySuggester: FuzzySuggester;
+    public editorHandler: Editor;
 
-    async onload(): Promise<void> {
-        await this.load_settings();
+    public async onload(): Promise<void> {
+        await this.loadSettings();
 
-        this.templater = new Templater(this);
+        this.templater = new Templater(this.app, this);
         await this.templater.setup();
 
-        this.editor_handler = new Editor(this);
-        await this.editor_handler.setup();
+        this.editorHandler = new Editor(this);
+        await this.editorHandler.setup();
 
-        this.fuzzy_suggester = new FuzzySuggester(this);
+        this.fuzzySuggester = new FuzzySuggester(this);
 
-        this.event_handler = new EventHandler(this, this.templater, this.settings);
-        this.event_handler.setup();
+        this.eventHandler = new EventHandler(this, this.templater, this.settings);
+        this.eventHandler.setup();
 
-        this.command_handler = new CommandHandler(this);
-        this.command_handler.setup();
+        this.commandHandler = new CommandHandler(this);
+        this.commandHandler.setup();
 
         addIcon("templater-icon", ICON_DATA);
         this.addRibbonIcon("templater-icon", "Templater", async () => {
-            this.fuzzy_suggester.insert_template();
+            this.fuzzySuggester.insert_template();
         }).setAttribute("id", "rb-templater-icon");
 
         this.addSettingTab(new TemplaterSettingTab(this.app, this));
 
         // Files might not be created yet
-        this.app.workspace.onLayoutReady(() => {
-            this.templater.executeStartupScripts();
+        this.app.workspace.onLayoutReady(async () => {
+            await this.templater.executeStartupScripts();
         });
 
         // type: string;
@@ -58,16 +58,16 @@ export default class TemplaterPlugin extends Plugin {
         });
     }
 
-    onunload(): void {
+    public async onunload(): Promise<void> {
         // Failsafe in case teardown doesn't happen immediately after template execution
-        this.templater.functionsGenerator.teardown();
+        await this.templater.functionsGenerator.teardown();
     }
 
-    async save_settings(): Promise<void> {
+    public async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
     }
 
-    async load_settings(): Promise<void> {
+    public async loadSettings(): Promise<void> {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 }

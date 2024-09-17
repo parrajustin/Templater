@@ -1,5 +1,5 @@
 import type { Option } from "../../lib/option";
-import { None, Some } from "../../lib/option";
+import { NONE, Some } from "../../lib/option";
 import type { ParserConfig } from "./parser";
 import type { ParserToken, Whitespace } from "./parseTokens";
 import { CommandType } from "./parseTokens";
@@ -14,8 +14,8 @@ export function GenerateJs(config: ParserConfig, tokens: ParserToken[]): string 
 
     let jsText = `let __prs = [];\nlet ${config.globalVar} = '';\n`;
 
-    let closingWhitespaceTrimType: Option<Whitespace> = None;
-    let prevText: Option<string> = None;
+    let closingWhitespaceTrimType: Option<Whitespace> = NONE;
+    let prevText: Option<string> = NONE;
     for (const token of tokens) {
         if (token.type === "text") {
             prevText = Some(token.text);
@@ -32,7 +32,7 @@ export function GenerateJs(config: ParserConfig, tokens: ParserToken[]): string 
                 jsText = `${jsText}${config.globalVar}+=atob('${text}');\n`;
             }
             closingWhitespaceTrimType = token.command.closingWhitespace;
-            prevText = None;
+            prevText = NONE;
 
             switch (token.command.type) {
                 case CommandType.INTERPOLATE:

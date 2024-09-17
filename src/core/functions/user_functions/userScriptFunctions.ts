@@ -2,11 +2,10 @@ import { Notice, type App, type TFile } from "obsidian";
 import type TemplaterPlugin from "main";
 import type { IGenerateObject } from "../iGenerateObject";
 import { GetTfilesFromFolder } from "utils/utils";
-import type { StatusResult } from "../../../lib/result";
+import type { Result, StatusResult } from "../../../lib/result";
 import { Err, Ok } from "../../../lib/result";
 import type { StatusError } from "../../../lib/status_error";
 import { InternalError, InvalidArgumentError } from "../../../lib/status_error";
-// import { ErrorWrapperSync, TemplaterError } from "utils/Error";
 
 interface ModuleInterface {
     exports: Record<string, unknown> | (() => void);
@@ -21,9 +20,9 @@ export class UserScriptFunctions implements IGenerateObject {
         private _plugin: TemplaterPlugin
     ) {}
 
-    public async generateObject(): Promise<Record<string, unknown>> {
+    public async generateObject(): Promise<Result<Record<string, unknown>, StatusError>> {
         const userScriptFunctions = await this.generateUserScriptFunctions();
-        return Object.fromEntries(userScriptFunctions);
+        return Ok(Object.fromEntries(userScriptFunctions));
     }
 
     private async generateUserScriptFunctions(): Promise<Map<string, () => unknown>> {

@@ -29,14 +29,14 @@ export default class EventHandler {
 
     update_syntax_highlighting(): void {
         const desktopShouldHighlight =
-            this.plugin.editor_handler.desktopShouldHighlight();
+            this.plugin.editorHandler.desktopShouldHighlight();
         const mobileShouldHighlight =
-            this.plugin.editor_handler.mobileShouldHighlight();
+            this.plugin.editorHandler.mobileShouldHighlight();
 
         if (desktopShouldHighlight || mobileShouldHighlight) {
-            this.plugin.editor_handler.enable_highlighter();
+            this.plugin.editorHandler.enable_highlighter();
         } else {
-            this.plugin.editor_handler.disable_highlighter();
+            this.plugin.editorHandler.disable_highlighter();
         }
     }
 
@@ -45,7 +45,7 @@ export default class EventHandler {
             this.trigger_on_file_creation_event = this.plugin.app.vault.on(
                 "create",
                 (file: TAbstractFile) =>
-                    Templater.on_file_creation(this.templater, file)
+                    Templater.onFileCreation(this.templater, file)
             );
             this.plugin.registerEvent(this.trigger_on_file_creation_event);
         } else {
@@ -64,7 +64,7 @@ export default class EventHandler {
                         item.setTitle("Create new note from template")
                             .setIcon("templater-icon")
                             .onClick(() => {
-                                this.plugin.fuzzy_suggester.create_new_note_from_template(
+                                this.plugin.fuzzySuggester.create_new_note_from_template(
                                     file
                                 );
                             });

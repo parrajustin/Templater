@@ -5,8 +5,9 @@ import type { IGenerateObject } from "./iGenerateObject";
 import type { RunningConfig } from "core/templater";
 import * as obsidianModule from "obsidian";
 import type { App } from "obsidian";
-import { StatusError } from "../../lib/status_error";
-import { Ok, Result } from "../../lib/result";
+import type { StatusError } from "../../lib/status_error";
+import type { Result } from "../../lib/result";
+import { Ok } from "../../lib/result";
 
 export enum FunctionsMode {
     INTERNAL,

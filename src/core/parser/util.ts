@@ -1,5 +1,5 @@
 import type { Option } from "../../lib/option";
-import { None, Some } from "../../lib/option";
+import { NONE, Some } from "../../lib/option";
 import { Whitespace } from "./parseTokens";
 
 /**
@@ -11,7 +11,7 @@ import { Whitespace } from "./parseTokens";
 export function SplitOnce(content: string, delimiter: string): Option<[string, string]> {
     const lastIndex = content.indexOf(delimiter);
     if (lastIndex === -1) {
-        return None;
+        return NONE;
     }
 
     const prefix = content.slice(0, lastIndex);

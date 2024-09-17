@@ -1,9 +1,11 @@
 import type { Option } from "../lib/option";
-import { None, Some } from "../lib/option";
-import { Err, Ok, Result } from "../lib/result";
-import { TemplaterError } from "./Error";
+import { NONE, Some } from "../lib/option";
+import type { Result } from "../lib/result";
+import { Err, Ok } from "../lib/result";
 import type { App, TAbstractFile } from "obsidian";
 import { normalizePath, TFile, TFolder, Vault } from "obsidian";
+import type { StatusError } from "../lib/status_error";
+import { InvalidArgumentError, NotFoundError } from "../lib/status_error";
 
 export function Delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,18 +29,15 @@ export function GenerateDynamicCommandRegex(): RegExp {
  * @param folderStr the full path to the folder
  * @returns the result of the folder resolving.
  */
-export function ResolveTfolder(
-    app: App,
-    folderStr: string
-): Result<TFolder, "folder doesn't exist" | "not a folder"> {
+export function ResolveTfolder(app: App, folderStr: string): Result<TFolder, StatusError> {
     folderStr = normalizePath(folderStr);
 
     const folder = app.vault.getAbstractFileByPath(folderStr);
     if (folder === null) {
-        return Err("folder doesn't exist");
+        return Err(NotFoundError("folder doesn't exist"));
     }
     if (!(folder instanceof TFolder)) {
-        return Err("not a folder");
+        return Err(InvalidArgumentError("not a folder"));
     }
 
     return Ok(folder);
@@ -50,18 +49,15 @@ export function ResolveTfolder(
  * @param fileStr the full path to the file
  * @returns the result of the file resolving
  */
-export function ResolveTfile(
-    app: App,
-    fileStr: string
-): Result<TFile, "file doesn't exist" | "not a file"> {
+export function ResolveTfile(app: App, fileStr: string): Result<TFile, StatusError> {
     fileStr = normalizePath(fileStr);
 
     const file = app.vault.getAbstractFileByPath(fileStr);
     if (file === null) {
-        return Err("file doesn't exist");
+        return Err(NotFoundError("folder doesn't exist"));
     }
     if (!(file instanceof TFile)) {
-        return Err("not a file");
+        return Err(InvalidArgumentError("not a folder"));
     }
 
     return Ok(file);
@@ -73,10 +69,7 @@ export function ResolveTfile(
  * @param folderStr the full path to the folder
  * @returns the files under the folder if it exists
  */
-export function GetTfilesFromFolder(
-    app: App,
-    folderStr: string
-): Result<TFile[], "not a folder" | "folder doesn't exist"> {
+export function GetTfilesFromFolder(app: App, folderStr: string): Result<TFile[], StatusError> {
     const folder = ResolveTfolder(app, folderStr);
     if (folder.err) {
         return folder;
@@ -116,7 +109,7 @@ export function GetActiveFile(app: App): Option<TFile> {
     return Some(app.workspace.activeEditor?.file ?? app.workspace.getActiveFile()).andThen<TFile>(
         (file) => {
             if (file === null) {
-                return None;
+                return NONE;
             }
             return Some(file);
         }

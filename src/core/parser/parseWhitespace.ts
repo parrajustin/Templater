@@ -1,5 +1,5 @@
 import type { Option } from "../../lib/option";
-import { None, Some } from "../../lib/option";
+import { NONE, Some } from "../../lib/option";
 import type { ParserConfig, ParsingData } from "./parser";
 import { Whitespace } from "./parseTokens";
 
@@ -17,10 +17,10 @@ export function ParseWhitespace(
 ): [Option<Whitespace>, string] {
     const firstChar = content[0];
     if (firstChar === undefined) {
-        return [None, content];
+        return [NONE, content];
     }
 
-    let whitespace: Option<Whitespace> = None;
+    let whitespace: Option<Whitespace> = NONE;
     if (firstChar === config.multipleWhitespace) {
         whitespace = Some(Whitespace.MULTIPLE);
     } else if (firstChar === config.singleWhitespace) {

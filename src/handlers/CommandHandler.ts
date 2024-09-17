@@ -17,7 +17,7 @@ export class CommandHandler {
                 },
             ],
             callback: () => {
-                this.plugin.fuzzy_suggester.insert_template();
+                this.plugin.fuzzySuggester.insert_template();
             },
         });
 
@@ -32,7 +32,7 @@ export class CommandHandler {
                 },
             ],
             callback: () => {
-                this.plugin.templater.overwrite_active_file_commands();
+                this.plugin.templater.overwriteActiveFileCommands();
             },
         });
 
@@ -47,7 +47,7 @@ export class CommandHandler {
                 },
             ],
             callback: () => {
-                this.plugin.editor_handler.jump_to_next_cursor_location();
+                this.plugin.editorHandler.jump_to_next_cursor_location();
             },
         });
 
@@ -62,7 +62,7 @@ export class CommandHandler {
                 },
             ],
             callback: () => {
-                this.plugin.fuzzy_suggester.create_new_note_from_template();
+                this.plugin.fuzzySuggester.create_new_note_from_template();
             },
         });
 
@@ -96,7 +96,7 @@ export class CommandHandler {
                     if (!template) {
                         return;
                     }
-                    this.plugin.templater.append_template_to_active_file(
+                    this.plugin.templater.appendTemplateToActiveFile(
                         template
                     );
                 },

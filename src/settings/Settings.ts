@@ -88,7 +88,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 });
                 cb.setValue(this.plugin.settings.templatesFolder).onChange((new_folder) => {
                     this.plugin.settings.templatesFolder = new_folder;
-                    this.plugin.save_settings();
+                    this.plugin.saveSettings();
                 });
                 cb.selectEl.addClass("templater_search");
             });
@@ -129,8 +129,8 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.syntax_highlighting)
                     .onChange((syntax_highlighting) => {
                         this.plugin.settings.syntax_highlighting = syntax_highlighting;
-                        this.plugin.save_settings();
-                        this.plugin.event_handler.update_syntax_highlighting();
+                        this.plugin.saveSettings();
+                        this.plugin.eventHandler.update_syntax_highlighting();
                     });
             });
 
@@ -143,8 +143,8 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .onChange((syntax_highlighting_mobile) => {
                         this.plugin.settings.syntax_highlighting_mobile =
                             syntax_highlighting_mobile;
-                        this.plugin.save_settings();
-                        this.plugin.event_handler.update_syntax_highlighting();
+                        this.plugin.saveSettings();
+                        this.plugin.eventHandler.update_syntax_highlighting();
                     });
             });
     }
@@ -169,7 +169,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.auto_jump_to_cursor)
                     .onChange((auto_jump_to_cursor) => {
                         this.plugin.settings.auto_jump_to_cursor = auto_jump_to_cursor;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                     });
             });
     }
@@ -195,8 +195,8 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.triggerOnFileCreation)
                     .onChange((trigger_on_file_creation) => {
                         this.plugin.settings.triggerOnFileCreation = trigger_on_file_creation;
-                        this.plugin.save_settings();
-                        this.plugin.event_handler.update_trigger_file_on_creation();
+                        this.plugin.saveSettings();
+                        this.plugin.eventHandler.update_trigger_file_on_creation();
                         // Force refresh
                         this.display();
                     });
@@ -230,12 +230,12 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             );
                             return;
                         }
-                        this.plugin.command_handler.add_template_hotkey(
+                        this.plugin.commandHandler.add_template_hotkey(
                             this.plugin.settings.enabled_templates_hotkeys[index] as string,
                             new_template
                         );
                         this.plugin.settings.enabled_templates_hotkeys[index] = new_template;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                     });
                     // @ts-ignore
                     cb.selectEl.addClass("templater_search");
@@ -262,7 +262,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                                 index,
                                 index - 1
                             );
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             this.display();
                         });
                 })
@@ -275,7 +275,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                                 index,
                                 index + 1
                             );
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             this.display();
                         });
                 })
@@ -283,11 +283,11 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     cb.setIcon("cross")
                         .setTooltip("Delete")
                         .onClick(() => {
-                            this.plugin.command_handler.remove_template_hotkey(
+                            this.plugin.commandHandler.remove_template_hotkey(
                                 this.plugin.settings.enabled_templates_hotkeys[index] as string
                             );
                             this.plugin.settings.enabled_templates_hotkeys.splice(index, 1);
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             // Force refresh
                             this.display();
                         });
@@ -300,7 +300,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 .setCta()
                 .onClick(() => {
                     this.plugin.settings.enabled_templates_hotkeys.push("");
-                    this.plugin.save_settings();
+                    this.plugin.saveSettings();
                     // Force refresh
                     this.display();
                 });
@@ -339,7 +339,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enable_folder_templates)
                     .onChange((use_new_file_templates) => {
                         this.plugin.settings.enable_folder_templates = use_new_file_templates;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                         // Force refresh
                         this.display();
                     });
@@ -362,7 +362,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             folder: "",
                             template: ""
                         });
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                         this.display();
                     });
             });
@@ -393,7 +393,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
 
                         (this.plugin.settings.folder_templates[index] as FolderTemplate).folder =
                             new_folder;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                     });
                     // @ts-ignore
                     cb.selectEl.addClass("templater_search");
@@ -408,7 +408,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     cb.setValue(folder_template.template).onChange((new_template) => {
                         (this.plugin.settings.folder_templates[index] as FolderTemplate).template =
                             new_template;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                     });
                     // @ts-ignore
                     cb.selectEl.addClass("templater_search");
@@ -418,7 +418,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         .setTooltip("Move up")
                         .onClick(() => {
                             arraymove(this.plugin.settings.folder_templates, index, index - 1);
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             this.display();
                         });
                 })
@@ -427,7 +427,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         .setTooltip("Move down")
                         .onClick(() => {
                             arraymove(this.plugin.settings.folder_templates, index, index + 1);
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             this.display();
                         });
                 })
@@ -436,7 +436,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         .setTooltip("Delete")
                         .onClick(() => {
                             this.plugin.settings.folder_templates.splice(index, 1);
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             this.display();
                         });
                 });
@@ -476,7 +476,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                             return;
                         }
                         this.plugin.settings.startup_templates[index] = new_template;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                     });
                     // @ts-ignore
                     cb.selectEl.addClass("templater_search");
@@ -486,7 +486,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         .setTooltip("Delete")
                         .onClick(() => {
                             this.plugin.settings.startup_templates.splice(index, 1);
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                             // Force refresh
                             this.display();
                         });
@@ -499,7 +499,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 .setCta()
                 .onClick(() => {
                     this.plugin.settings.startup_templates.push("");
-                    this.plugin.save_settings();
+                    this.plugin.saveSettings();
                     // Force refresh
                     this.display();
                 });
@@ -535,7 +535,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                 });
                 cb.setValue(this.plugin.settings.user_scripts_folder).onChange((new_folder) => {
                     this.plugin.settings.user_scripts_folder = new_folder;
-                    this.plugin.save_settings();
+                    this.plugin.saveSettings();
                 });
                 // @ts-ignore
                 cb.selectEl.addClass("templater_search");
@@ -602,7 +602,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.enable_system_commands)
                     .onChange((enable_system_commands) => {
                         this.plugin.settings.enable_system_commands = enable_system_commands;
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                         // Force refresh
                         this.display();
                     });
@@ -622,7 +622,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                                 return;
                             }
                             this.plugin.settings.commandTimeout = new_timeout;
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                         });
                 });
 
@@ -642,7 +642,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                         .setValue(this.plugin.settings.shell_path)
                         .onChange((shell_path) => {
                             this.plugin.settings.shell_path = shell_path;
-                            this.plugin.save_settings();
+                            this.plugin.saveSettings();
                         });
                 });
 
@@ -666,7 +666,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                                     this.plugin.settings.templatesPairs.indexOf(template_pair);
                                 if (index > -1) {
                                     this.plugin.settings.templatesPairs.splice(index, 1);
-                                    this.plugin.save_settings();
+                                    this.plugin.saveSettings();
                                     // Force refresh
                                     this.display();
                                 }
@@ -686,7 +686,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                                             string
                                         ]
                                     )[0] = new_value;
-                                    this.plugin.save_settings();
+                                    this.plugin.saveSettings();
                                 }
                             });
                         t.inputEl.addClass("templater_template");
@@ -707,7 +707,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                                             string
                                         ]
                                     )[1] = new_cmd;
-                                    this.plugin.save_settings();
+                                    this.plugin.saveSettings();
                                 }
                             });
 
@@ -734,7 +734,7 @@ export class TemplaterSettingTab extends PluginSettingTab {
                     .setCta()
                     .onClick(() => {
                         this.plugin.settings.templatesPairs.push(["", ""]);
-                        this.plugin.save_settings();
+                        this.plugin.saveSettings();
                         // Force refresh
                         this.display();
                     });
