@@ -12,6 +12,7 @@ import { InternalModuleConfig } from "./config/InternalModuleConfig";
 import type { StatusError } from "../../../lib/status_error";
 import { Ok, type Result } from "../../../lib/result";
 import type { App } from "obsidian";
+import { InternalModuleTemplator } from "./templator/internalModuleTemplator";
 
 export class InternalFunctions implements IGenerateObject {
     private _modulesArray: InternalModule[] = [];
@@ -27,6 +28,7 @@ export class InternalFunctions implements IGenerateObject {
         this._modulesArray.push(new InternalModuleHooks(_app, this.plugin));
         this._modulesArray.push(new InternalModuleSystem(_app, this.plugin));
         this._modulesArray.push(new InternalModuleConfig(_app, this.plugin));
+        this._modulesArray.push(new InternalModuleTemplator(_app, this.plugin));
     }
 
     public async init(): Promise<void> {
@@ -47,7 +49,11 @@ export class InternalFunctions implements IGenerateObject {
         const internalFunctionsObject: { [key: string]: unknown } = {};
 
         for (const mod of this._modulesArray) {
-            internalFunctionsObject[mod.getName()] = await mod.generateObject(config);
+            const generationResult = await mod.generateObject(config);
+            if (!generationResult.ok) {
+                return generationResult;
+            }
+            internalFunctionsObject[mod.getName()] = generationResult.safeUnwrap();
         }
 
         return Ok(internalFunctionsObject);

@@ -7,7 +7,7 @@ export function LogUpdate(msg: string): void {
 }
 
 export function LogError(e: Error | StatusError): void {
-    const notice = new Notice("", 8000);
+    const notice = new Notice("", 10000);
     if (e instanceof StatusError) {
         notice.noticeEl.innerHTML = `<b>Templater Error</b>:<br/>${e.toString()}<br/>Check console for more information`;
         console.error(`Templater Error:`, e.toString(), e);

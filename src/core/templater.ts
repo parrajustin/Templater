@@ -43,6 +43,8 @@ export interface RunningConfig {
     runMode: RunMode;
     /** Active obsidian file if any. */
     activeFile?: TFile;
+    /** User defined params. */
+    params: Record<string, unknown>;
 }
 
 export class Templater {
@@ -124,9 +126,13 @@ export class Templater {
         template: TFile | string,
         folder?: TFolder | string,
         filename?: string,
-        openNewNote = true
+        openNewNote = true,
+        userParams: Record<string, unknown> = {}
     ): Promise<Result<TFile | undefined, StatusError>> {
-        // TODO: Maybe there is an obsidian API function for that
+        if (filename === undefined) {
+            return Err(InvalidArgumentError("Output filename must be defined."));
+        }
+        // If folder is unset get the obsidian default folder location.
         if (folder === undefined) {
             const newFileLocation = this._app.vault.getConfig("newFileLocation");
             switch (newFileLocation) {
@@ -147,12 +153,16 @@ export class Templater {
                     break;
             }
         }
+        const fullName = `${folder instanceof TFolder ? folder.path : folder}/${filename}`;
+        if (await this._app.vault.exists(fullName)) {
+            return Err(InvalidArgumentError("Output file already exists!"));
+        }
 
         const extension = template instanceof TFile ? template.extension || "md" : "md";
 
         const possibleFolderPath = (folder instanceof TFolder ? folder.path : folder) ?? "";
         const folderCheckedPath = this._app.vault.getAvailablePath(
-            normalizePath(`${possibleFolderPath}/${filename ?? "Untitled"}`),
+            normalizePath(`${possibleFolderPath}/${filename}`),
             extension
         );
         const folderPath = GetFolderPathFromFilePath(folderCheckedPath);
@@ -176,7 +186,8 @@ export class Templater {
             runningConfig = this.createRunningConfig(
                 template,
                 createdNote,
-                RunMode.CREATE_NEW_FROM_TEMPLATE
+                RunMode.CREATE_NEW_FROM_TEMPLATE,
+                userParams
             );
             const readAndParseResult = await this.readAndParseTemplate(runningConfig);
             if (!readAndParseResult.ok) {
@@ -187,7 +198,8 @@ export class Templater {
             runningConfig = this.createRunningConfig(
                 undefined,
                 createdNote,
-                RunMode.CREATE_NEW_FROM_TEMPLATE
+                RunMode.CREATE_NEW_FROM_TEMPLATE,
+                userParams
             );
             const parseTemplateResult = await this.parseTemplate(runningConfig, template);
             if (!parseTemplateResult.ok) {
@@ -369,15 +381,12 @@ export class Templater {
 
     /** Execute the startup templates that don't render any template. */
     public async executeStartupScripts(): Promise<void[]> {
-        console.log("executeStartupScripts");
         const startupPromises: Promise<void>[] = [];
         for (const template of this._plugin.settings.startupTemplates) {
-            console.log("executeStartupScripts", template);
             if (template === "") {
                 continue;
             }
             const fileResult = ResolveTfile(this._app, template);
-            console.log("ResolveTfile", fileResult);
             if (!fileResult.ok) {
                 continue;
             }
@@ -387,7 +396,6 @@ export class Templater {
             const runningConfig = this.createRunningConfig(file, file, RunMode.STARTUP_TEMPLATE);
             startupPromises.push(
                 this.readAndParseTemplate(runningConfig).then((parsedTemplate) => {
-                    console.log("readAndParseTemplate", parsedTemplate);
                     if (parsedTemplate.ok) {
                         return this.endTemplaterTask(path);
                     }
@@ -446,7 +454,8 @@ export class Templater {
     private createRunningConfig(
         templateFile: TFile | undefined,
         targetFile: TFile,
-        runMode: RunMode
+        runMode: RunMode,
+        params: Record<string, unknown> = {}
     ): RunningConfig {
         const activeFile = GetActiveFile(this._app);
 
@@ -454,7 +463,8 @@ export class Templater {
             templateFile,
             targetFile,
             runMode,
-            activeFile: activeFile.valueOr(undefined)
+            activeFile: activeFile.valueOr(undefined),
+            params
         };
     }
 
@@ -485,7 +495,6 @@ export class Templater {
             return functionsObject;
         }
         this.currentFunctionsObject = functionsObject.safeUnwrap();
-        console.log("parseTemplate context", functionsObject);
         const content = await this.parser.wrapParseAndEvaluateTemplate(
             templateContent,
             this.currentFunctionsObject

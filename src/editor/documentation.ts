@@ -4,6 +4,36 @@ export const DOCUMENTATION = {
             description: "This module exposes the userscripts.",
             name: "user"
         },
+        templator: {
+            description: "This module exposes Templater's internal api.\n",
+            name: "templator",
+            functions: {
+                createNewNoteFromTemplate: {
+                    definition: "tp.config.createNewNoteFromTemplate?",
+                    description:
+                        "If the file doesn't exist create a new file from the specified template.",
+                    name: "createNewNoteFromTemplate",
+                    args: [
+                        {
+                            description: "The contianing folder for the output.",
+                            name: "outputFolder"
+                        },
+                        {
+                            description: "The file name of the output.",
+                            name: "outputFileName"
+                        },
+                        {
+                            description: "The full path to the template.",
+                            name: "templatePath"
+                        },
+                        {
+                            description: "Dict of parameters to pass to the templator execution.",
+                            name: "params"
+                        }
+                    ]
+                }
+            }
+        },
         config: {
             description:
                 "This module exposes Templater's running configuration.\n\nThis is mostly useful when writing scripts requiring some context information.\n",
@@ -30,6 +60,11 @@ export const DOCUMENTATION = {
                     definition: "tp.config.templateFile",
                     description: "The `TFile` object representing the template file.",
                     name: "templateFile"
+                },
+                params: {
+                    definition: "tp.config.params",
+                    description: "User defined parameters if any.",
+                    name: "params"
                 }
             }
         },

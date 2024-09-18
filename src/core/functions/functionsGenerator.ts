@@ -40,7 +40,6 @@ export class FunctionsGenerator implements IGenerateObject {
         config: RunningConfig,
         functionsMode: FunctionsMode = FunctionsMode.USER_INTERNAL
     ): Promise<Result<Record<string, unknown>, StatusError>> {
-        console.log("FunctionsGenerator.generateObject");
         const finalObject = {};
         const additionalFunctionsObject = this.additionalFunctions();
         const internalResult = await this.internalFunctions.generateObject(config);
@@ -56,7 +55,6 @@ export class FunctionsGenerator implements IGenerateObject {
                 break;
             case FunctionsMode.USER_INTERNAL: {
                 const generateResult = await this.userFunctions.generateObject(config);
-                console.log("user generateObject", generateResult);
                 if (generateResult.err) {
                     return generateResult;
                 }
