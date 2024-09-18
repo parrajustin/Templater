@@ -200,7 +200,7 @@ export class InternalModuleFile extends InternalModule {
                 }
             }
 
-            const parsedContent = await this.plugin.templater.parser.parseCommands(
+            const parsedContent = await this.plugin.templater.parser.wrapParseAndEvaluateTemplate(
                 incFileContent,
                 this.plugin.templater.currentFunctionsObject
             );

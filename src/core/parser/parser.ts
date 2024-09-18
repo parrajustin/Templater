@@ -84,12 +84,25 @@ export class Parser {
     }
 
     /**
+     * Sames as `parseAndEvaluateTemplate` but wraps the context in a global `tp` var.
+     * @param content data to parse.
+     * @param context the scope information
+     * @returns the parsed and resolved template.
+     */
+    public async wrapParseAndEvaluateTemplate(
+        content: string,
+        context: Record<string, unknown>
+    ): Promise<Result<string, StatusError>> {
+        return this.parseAndEvaluateTemplate(content, { tp: context });
+    }
+
+    /**
      * Parses the input `content` and outputs the finished text data. Catches any template errors.
      * @param content data to parse.
      * @param context the scope information
      * @returns the parsed and resolved template.
      */
-    public async parseCommands(
+    public async parseAndEvaluateTemplate(
         content: string,
         context: Record<string, unknown>
     ): Promise<Result<string, StatusError>> {

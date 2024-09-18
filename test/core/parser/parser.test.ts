@@ -25,7 +25,7 @@ This is a normal file !
         };
         const parser = new Parser();
         await parser.init();
-        const result = await parser.parseCommands(content, context);
+        const result = await parser.parseAndEvaluateTemplate(content, context);
         expect(result.ok).toBeTruthy();
         expect(result.unsafeUnwrap()).toStrictEqual(`
 test5test5test test 5
@@ -58,7 +58,7 @@ This is a normal file !
         };
         const parser = new Parser();
         await parser.init();
-        const result = await parser.parseCommands(content, context);
+        const result = await parser.parseAndEvaluateTemplate(content, context);
         expect(result.err).toBeTruthy();
         expect(result.val.toString()).toContain(`ReferenceError: lol is not defined`);
     });
@@ -94,7 +94,7 @@ This is a normal file !
             globalVar: "tR"
         };
         await parser.init(customBrokenConfig);
-        const result = await parser.parseCommands(content, context);
+        const result = await parser.parseAndEvaluateTemplate(content, context);
         expect(result.err).toBeTruthy();
         expect(result.val.toString()).toContain(`INVALID_ARGUMENT: Missing command type.`);
     });
@@ -132,7 +132,7 @@ This is a normal file !
             globalVar: "tR"
         };
         await parser.init(customBrokenConfig);
-        const result = await parser.parseCommands(content, context);
+        const result = await parser.parseAndEvaluateTemplate(content, context);
         expect(result.err).toBeTruthy();
         expect(result.val.toString()).toContain(`Test UnimplementedError`);
     });

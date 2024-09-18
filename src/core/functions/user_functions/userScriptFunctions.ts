@@ -27,10 +27,7 @@ export class UserScriptFunctions implements IGenerateObject {
 
     private async generateUserScriptFunctions(): Promise<Map<string, () => unknown>> {
         const userScriptFunctions: Map<string, () => unknown> = new Map();
-        const userScripts = GetTfilesFromFolder(
-            this._app,
-            this._plugin.settings.user_scripts_folder
-        );
+        const userScripts = GetTfilesFromFolder(this._app, this._plugin.settings.userScriptsFolder);
         if (userScripts.err) {
             // eslint-disable-next-line no-console
             console.error("Failed to get user scripts.", userScripts.err);

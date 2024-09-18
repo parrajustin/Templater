@@ -333,7 +333,7 @@ export class Templater {
             while (match != null) {
                 // Not the most efficient way to exclude the '+' from the command but I couldn't find something better
                 const completeCommand = (match[1] as string) + (match[2] as string);
-                const commandResult = await this.parser.parseCommands(
+                const commandResult = await this.parser.wrapParseAndEvaluateTemplate(
                     completeCommand,
                     functionsObject
                 );
@@ -369,12 +369,15 @@ export class Templater {
 
     /** Execute the startup templates that don't render any template. */
     public async executeStartupScripts(): Promise<void[]> {
+        console.log("executeStartupScripts");
         const startupPromises: Promise<void>[] = [];
         for (const template of this._plugin.settings.startupTemplates) {
-            if (!template) {
+            console.log("executeStartupScripts", template);
+            if (template === "") {
                 continue;
             }
             const fileResult = ResolveTfile(this._app, template);
+            console.log("ResolveTfile", fileResult);
             if (!fileResult.ok) {
                 continue;
             }
@@ -384,6 +387,7 @@ export class Templater {
             const runningConfig = this.createRunningConfig(file, file, RunMode.STARTUP_TEMPLATE);
             startupPromises.push(
                 this.readAndParseTemplate(runningConfig).then((parsedTemplate) => {
+                    console.log("readAndParseTemplate", parsedTemplate);
                     if (parsedTemplate.ok) {
                         return this.endTemplaterTask(path);
                     }
@@ -481,7 +485,8 @@ export class Templater {
             return functionsObject;
         }
         this.currentFunctionsObject = functionsObject.safeUnwrap();
-        const content = await this.parser.parseCommands(
+        console.log("parseTemplate context", functionsObject);
+        const content = await this.parser.wrapParseAndEvaluateTemplate(
             templateContent,
             this.currentFunctionsObject
         );
