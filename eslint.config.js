@@ -1,13 +1,15 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
+import prettier from "prettier";
 
 const config = tseslint.config({
     files: ["**/*.ts"],
     extends: [
         eslint.configs.recommended,
         ...tseslint.configs.recommended,
-        eslintPluginPrettierRecommended
+        eslintPluginPrettierRecommended,
+        prettier
     ],
     ignores: ["**/*.js"],
     // This is required, see the docs

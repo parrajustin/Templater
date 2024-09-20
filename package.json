@@ -1,12 +1,14 @@
 {
     "name": "templater-obsidian",
-    "version": "2.7.1",
+    "version": "1.0.0",
     "description": "Create and use templates",
     "main": "main.js",
     "type": "module",
     "scripts": {
         "dev": "node esbuild.config.mjs",
         "build": "node esbuild.config.mjs production",
+        "version": "node version-bump.mjs",
+        "githubaction": "node version-github-action.mjs",
         "test": "jest",
         "test-dev": "jest --silent=false --verbose=true",
         "docs-dev": "mdbook serve docs",
@@ -20,7 +22,7 @@
         "obsidian-plugin",
         "obsidian-md-plugin"
     ],
-    "author": "SilentVoid13",
+    "author": "Justin Parra",
     "license": "AGPL-3.0-only",
     "devDependencies": {
         "@eslint/js": "9.2.0",

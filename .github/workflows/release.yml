@@ -1,25 +1,41 @@
-name: Plugin release
+name: Release Obsidian plugin
 
 on:
-    push:
-        tags:
-            - "*"
+  push:
+    tags:
+      - '*'
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: denolib/setup-deno@v2
-              with:
-                  deno-version: v1.x
-            - name: npm build
-              run: |
-                  npm install
-                  npm run build --if-present
-            - name: Create Release
-              # https://github.com/ncipollo/release-action
-              uses: ncipollo/release-action@v1.7.3
-              with:
-                  artifacts: "main.js,manifest.json,styles.css"
-                  token: ${{ secrets.GITHUB_TOKEN }}
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 9
+          run_install: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '21.x'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+
+          gh release create "$tag" \
+            --title="$tag" \
+            dist/main.js manifest.json styles.css
